@@ -10,7 +10,7 @@ Featherboard is a self-hosted customer feedback board (feedback board + voting +
 
 **Note:** this is a clean-room implementation — do not copy source code from any similar existing product when researching prior art or feature behavior.
 
-Repo currently has scaffolding in place; features are being built incrementally. See `.notes/` (gitignored, local-only) for the fuller product research and planning context behind these decisions.
+Repo currently has scaffolding in place; features are being built incrementally.
 
 ## Commands
 
@@ -23,4 +23,3 @@ Repo currently has scaffolding in place; features are being built incrementally.
 
 - **Git commits:** never run `git add`, `git commit`, `git push`, or any other git write/history-modifying command. Staging, committing, and pushing are exclusively the user's own actions — write files to disk and propose the commit, then stop and let the user handle git. This applies even if asked to "save progress" or similar.
 - **Branch naming:** `type/short-description` (e.g. `chore/project-setup`, `feat/...`, `fix/...`).
-- **Private notes:** `.notes/` is a gitignored symlink into a local, non-public vault (business/product-planning context). Treat it as background reading only — never copy its contents into commits, public docs, or anything else headed for the public repo.
