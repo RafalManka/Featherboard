@@ -2,5 +2,17 @@
 name = "featherboard"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0-only"
 
 [dependencies]
+anyhow = "1.0.104"
+askama = "0.16.0"
+axum = "0.8.9"
+rust-embed = { version = "8.12.0", features = ["mime-guess"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
+tokio = { version = "1.53.1", features = ["full"] }
+tower-http = { version = "0.7.0", features = ["trace"] }
+tower-sessions = "0.14"
+tower-sessions-sqlx-store = { version = "0.15.0", features = ["sqlite"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
