@@ -450,6 +450,7 @@ dependencies = [
  "askama",
  "axum",
  "rust-embed",
+ "serde",
  "sqlx",
  "tokio",
  "tower-http",

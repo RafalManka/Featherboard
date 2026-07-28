@@ -9,6 +9,7 @@ anyhow = "1.0.104"
 askama = "0.16.0"
 axum = "0.8.9"
 rust-embed = { version = "8.12.0", features = ["mime-guess"] }
+serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
 tokio = { version = "1.53.1", features = ["full"] }
 tower-http = { version = "0.7.0", features = ["trace"] }

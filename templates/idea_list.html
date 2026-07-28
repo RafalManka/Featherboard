@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Ideas{% endblock %}
+
+{% block content %}
+<h1>Ideas</h1>
+<p><a href="/ideas/new">Submit an idea</a></p>
+
+<nav class="filters">
+    <a href="/?sort={{ current_sort }}" {% if current_status== "" %} class="active"{% endif %}>All</a>
+    {% for s in all_statuses %}
+    <a href="/?status={{ s.as_str() }}&sort={{ current_sort }}" {% if current_status== s.as_str() %} class="active" {%
+       endif %}>{{ s.label() }}</a>
+    {% endfor %}
+</nav>
+<nav class="sort">
+    <a href="/?sort=new{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "new"
+    %} class="active"{% endif %}>New</a>
+    <a href="/?sort=top{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "top"
+    %} class="active"{% endif %}>Top</a>
+</nav>
+
+<ul>
+    {% for item in ideas %}
+    <li>
+        {% include "partials/vote_button.html" %}
+        <a href="/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
+        <span class="{{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
+        <time>{{ item.idea.created_date() }}</time>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
