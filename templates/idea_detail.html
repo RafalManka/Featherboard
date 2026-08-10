@@ -3,37 +3,44 @@
 {% block title %}{{ item.idea.title }}{% endblock %}
 
 {% block content %}
-<p><a href="/">&larr; Back to ideas</a></p>
-<h1>{{ item.idea.title }}</h1>
-{% if is_admin %}
-<form method="post" action="/ideas/{{ item.idea.id }}/status">
-    <select name="status">
-        {% for s in all_statuses %}
-        <option value="{{ s.as_str() }}" {% if s.as_str() == item.idea.status %}selected{% endif %}>{{ s.label() }}</option>
-        {% endfor %}
-    </select>
-    <button type="submit">Update status</button>
-</form>
-{% else %}
-<span class="{{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
-{% endif %}
-<p>{{ item.idea.description }}</p>
-{% include "partials/vote_button.html" %}
+<p><a class="back-link" href="/">&larr; Back to ideas</a></p>
+
+<div class="idea-detail-card">
+    {% include "partials/vote_button.html" %}
+    <div class="idea-main">
+        <h1>{{ item.idea.title }}</h1>
+        {% if is_admin %}
+        <form class="status-form" method="post" action="/ideas/{{ item.idea.id }}/status">
+            <select name="status">
+                {% for s in all_statuses %}
+                <option value="{{ s.as_str() }}" {% if s.as_str() == item.idea.status %}selected{% endif %}>{{ s.label() }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Update status</button>
+        </form>
+        {% else %}
+        <span class="status-pill {{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
+        {% endif %}
+        <p class="idea-description">{{ item.idea.description }}</p>
+    </div>
+</div>
 
 <h2>Comments</h2>
 {% if comment_error %}<p class="error">Please provide your name and a comment.</p>{% endif %}
 
 {% for c in comments %}
-<article id="comment-{{ c.comment.id }}">
-    <p><strong>{{ c.comment.author_name }}</strong>: {{ c.comment.body }}</p>
+<article class="comment" id="comment-{{ c.comment.id }}">
+    <p class="comment-author">{{ c.comment.author_name }}</p>
+    <p class="comment-body">{{ c.comment.body }}</p>
     {% for r in c.replies %}
-    <article class="reply">
-        <p><strong>{{ r.author_name }}</strong>: {{ r.body }}</p>
+    <article class="comment reply">
+        <p class="comment-author">{{ r.author_name }}</p>
+        <p class="comment-body">{{ r.body }}</p>
     </article>
     {% endfor %}
     <details>
         <summary>Reply</summary>
-        <form method="post" action="/ideas/{{ item.idea.id }}/comments">
+        <form class="idea-form reply-form" method="post" action="/ideas/{{ item.idea.id }}/comments">
             <input type="hidden" name="parent_comment_id" value="{{ c.comment.id }}">
             <input type="text" name="author_name" placeholder="Your name">
             <textarea name="body" placeholder="Reply"></textarea>
@@ -44,7 +51,7 @@
 {% endfor %}
 
 <h3>Add a comment</h3>
-<form method="post" action="/ideas/{{ item.idea.id }}/comments">
+<form class="idea-form" method="post" action="/ideas/{{ item.idea.id }}/comments">
     <div>
         <label for="author_name">Name</label>
         <input type="text" id="author_name" name="author_name">

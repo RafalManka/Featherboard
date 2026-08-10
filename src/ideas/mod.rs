@@ -138,6 +138,47 @@ pub async fn list_ideas(
 }
 
 #[derive(Template)]
+#[template(path = "roadmap.html")]
+pub struct RoadmapTemplate {
+    groups: Vec<(IdeaStatus, Vec<IdeaListItem>)>,
+}
+
+pub async fn roadmap(
+    State(state): State<AppState>,
+    session: Session,
+) -> Result<HtmlTemplate<RoadmapTemplate>, AppError> {
+    let sql = format!(
+        "{IDEAS_WITH_VOTE_COUNT} WHERE i.org_id = ? GROUP BY i.id ORDER BY vote_count DESC, i.id DESC"
+    );
+    let rows: Vec<IdeaRow> = sqlx::query_as(&sql)
+        .bind(state.default_org_id)
+        .fetch_all(&state.db)
+        .await?;
+
+    let voted_ids = voted_idea_ids(&state, &session).await?;
+    let mut groups: Vec<(IdeaStatus, Vec<IdeaListItem>)> =
+        IdeaStatus::ALL.into_iter().map(|s| (s, Vec::new())).collect();
+
+    for row in rows {
+        let Some(status) = IdeaStatus::parse(&row.status) else {
+            continue;
+        };
+        let voted = voted_ids.contains(&row.id);
+        let vote_count = row.vote_count;
+        let item = IdeaListItem {
+            idea: row.into_idea(),
+            vote_count,
+            voted,
+        };
+        if let Some((_, items)) = groups.iter_mut().find(|(s, _)| *s == status) {
+            items.push(item);
+        }
+    }
+
+    Ok(HtmlTemplate(RoadmapTemplate { groups }))
+}
+
+#[derive(Template)]
 #[template(path = "idea_detail.html")]
 struct IdeaDetailTemplate {
     item: IdeaListItem,

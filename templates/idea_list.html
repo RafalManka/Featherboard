@@ -20,13 +20,18 @@
     %} class="active"{% endif %}>Top</a>
 </nav>
 
-<ul>
+<ul class="idea-list">
     {% for item in ideas %}
-    <li>
+    <li class="idea-card">
         {% include "partials/vote_button.html" %}
-        <a href="/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
-        <span class="{{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
-        <time>{{ item.idea.created_date() }}</time>
+        <div class="idea-main">
+            <a class="idea-title" href="/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
+            <p class="idea-excerpt">{{ item.idea.excerpt() }}</p>
+            <div class="idea-meta">
+                <span class="status-pill {{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
+                <time>{{ item.idea.created_date() }}</time>
+            </div>
+        </div>
     </li>
     {% endfor %}
 </ul>
