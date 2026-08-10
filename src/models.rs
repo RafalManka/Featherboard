@@ -25,6 +25,15 @@ impl Idea {
     pub fn created_date(&self) -> &str {
         self.created_at.get(..10).unwrap_or(&self.created_at)
     }
+
+    pub fn excerpt(&self) -> String {
+        const MAX_CHARS: usize = 140;
+        if self.description.chars().count() <= MAX_CHARS {
+            return self.description.clone();
+        }
+        let truncated: String = self.description.chars().take(MAX_CHARS).collect();
+        format!("{}…", truncated.trim_end())
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

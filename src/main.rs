@@ -8,7 +8,7 @@ mod templates;
 mod validation;
 
 use crate::admin::admin_router;
-use crate::ideas::{ideas_router, list_ideas};
+use crate::ideas::{ideas_router, list_ideas, roadmap};
 use axum::extract::State;
 use axum::{Router, routing::get};
 use error::AppError;
@@ -71,6 +71,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(list_ideas))
+        .route("/roadmap", get(roadmap))
         .route("/healthz", get(healthz))
         .route("/static/{*path}", get(static_assets::serve))
         .nest("/ideas", ideas_router())

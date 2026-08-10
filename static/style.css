@@ -1,7 +1,390 @@
+:root {
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --bg-subtle: #f9fafb;
+    --accent: #2563eb;
+    --accent-contrast: #ffffff;
+
+    --status-open-bg: #f3f4f6;
+    --status-open-fg: #4b5563;
+    --status-planned-bg: #dbeafe;
+    --status-planned-fg: #1d4ed8;
+    --status-in-progress-bg: #fef3c7;
+    --status-in-progress-fg: #b45309;
+    --status-done-bg: #dcfce7;
+    --status-done-fg: #15803d;
+    --status-declined-bg: #fee2e2;
+    --status-declined-fg: #b91c1c;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: system-ui, sans-serif;
     max-width: 40rem;
-    margin: 3rem auto;
+    margin: 0 auto 3rem;
     padding: 0 1rem;
-    color: #1a1a1a;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+h1 {
+    font-size: 1.5rem;
+    margin: 1rem 0 0.75rem;
+}
+
+h2 {
+    font-size: 1.1rem;
+}
+
+a {
+    color: var(--accent);
+}
+
+/* Top nav */
+.main-nav {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1rem 0;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.main-nav a {
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.main-nav a:hover {
+    color: var(--accent);
+}
+
+.back-link {
+    display: inline-block;
+    font-size: 0.9rem;
+    text-decoration: none;
+    margin-bottom: 0.5rem;
+}
+
+/* Status pill, shared by list/detail/roadmap */
+.status-pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-open {
+    background: var(--status-open-bg);
+    color: var(--status-open-fg);
+}
+
+.status-planned {
+    background: var(--status-planned-bg);
+    color: var(--status-planned-fg);
+}
+
+.status-in-progress {
+    background: var(--status-in-progress-bg);
+    color: var(--status-in-progress-fg);
+}
+
+.status-done {
+    background: var(--status-done-bg);
+    color: var(--status-done-fg);
+}
+
+.status-declined {
+    background: var(--status-declined-bg);
+    color: var(--status-declined-fg);
+}
+
+/* Filter/sort pill nav on the board page */
+.filters,
+.sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.filters a,
+.sort a {
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+.filters a.active,
+.sort a.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: #fff;
+}
+
+/* Vote button, reused on board list, detail page, and vote partial swaps */
+.vote-btn {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+}
+
+.vote-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.vote-btn .vote-arrow {
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.vote-btn .vote-count {
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.vote-btn.voted {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+}
+
+/* Board list */
+.idea-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.idea-card {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+}
+
+.idea-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.idea-title {
+    display: block;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+}
+
+.idea-title:hover {
+    color: var(--accent);
+}
+
+.idea-excerpt {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.idea-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+/* Idea detail */
+.idea-detail-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.idea-description {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.status-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0.5rem 0;
+}
+
+/* Forms (submit idea, comment, reply) */
+.idea-form div {
+    margin-bottom: 0.75rem;
+}
+
+.idea-form label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.idea-form input[type="text"],
+.idea-form textarea,
+.status-form select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    font: inherit;
+}
+
+.reply-form {
+    margin-top: 0.5rem;
+}
+
+button[type="submit"],
+.status-form button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover,
+.status-form button:hover {
+    opacity: 0.9;
+}
+
+.error {
+    color: var(--status-declined-fg);
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
+}
+
+/* Comments */
+.comment {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.comment.reply {
+    margin-left: 1.5rem;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.comment-author {
+    margin: 0 0 0.2rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.comment-body {
+    margin: 0;
+}
+
+details summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+
+/* Roadmap */
+.roadmap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.roadmap-column {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+}
+
+.roadmap-column h2 {
+    margin: 0 0 0.6rem;
+}
+
+.roadmap-column .empty {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.roadmap-cards {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.roadmap-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.6rem;
+}
+
+.roadmap-card a {
+    display: block;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    margin-bottom: 0.2rem;
+}
+
+.roadmap-card a:hover {
+    color: var(--accent);
+}
+
+.roadmap-vote-count {
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+body.wide {
+    max-width: 64rem;
+}
+
+@media (max-width: 30rem) {
+    body {
+        max-width: 100%;
+    }
 }
