@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.idea.title }}{% endblock %}
+
+{% block content %}
+<p><a href="/">&larr; Back to ideas</a></p>
+<h1>{{ item.idea.title }}</h1>
+{% if is_admin %}
+<form method="post" action="/ideas/{{ item.idea.id }}/status">
+    <select name="status">
+        {% for s in all_statuses %}
+        <option value="{{ s.as_str() }}" {% if s.as_str() == item.idea.status %}selected{% endif %}>{{ s.label() }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Update status</button>
+</form>
+{% else %}
+<span class="{{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
+{% endif %}
+<p>{{ item.idea.description }}</p>
+{% include "partials/vote_button.html" %}
+
+<h2>Comments</h2>
+{% if comment_error %}<p class="error">Please provide your name and a comment.</p>{% endif %}
+
+{% for c in comments %}
+<article id="comment-{{ c.comment.id }}">
+    <p><strong>{{ c.comment.author_name }}</strong>: {{ c.comment.body }}</p>
+    {% for r in c.replies %}
+    <article class="reply">
+        <p><strong>{{ r.author_name }}</strong>: {{ r.body }}</p>
+    </article>
+    {% endfor %}
+    <details>
+        <summary>Reply</summary>
+        <form method="post" action="/ideas/{{ item.idea.id }}/comments">
+            <input type="hidden" name="parent_comment_id" value="{{ c.comment.id }}">
+            <input type="text" name="author_name" placeholder="Your name">
+            <textarea name="body" placeholder="Reply"></textarea>
+            <button type="submit">Reply</button>
+        </form>
+    </details>
+</article>
+{% endfor %}
+
+<h3>Add a comment</h3>
+<form method="post" action="/ideas/{{ item.idea.id }}/comments">
+    <div>
+        <label for="author_name">Name</label>
+        <input type="text" id="author_name" name="author_name">
+    </div>
+    <div>
+        <label for="body">Comment</label>
+        <textarea id="body" name="body" rows="4"></textarea>
+    </div>
+    <button type="submit">Comment</button>
+</form>
+{% endblock %}
