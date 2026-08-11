@@ -4,21 +4,26 @@
 
 {% block content %}
 <h1>Ideas</h1>
-<p><a href="/ideas/new">Submit an idea</a></p>
+<a class="submit-idea-cta" href="/ideas/new">
+    <span aria-hidden="true">+</span>
+    <span>Submit an idea</span>
+</a>
 
-<nav class="filters">
-    <a href="/?sort={{ current_sort }}" {% if current_status== "" %} class="active"{% endif %}>All</a>
-    {% for s in all_statuses %}
-    <a href="/?status={{ s.as_str() }}&sort={{ current_sort }}" {% if current_status== s.as_str() %} class="active" {%
-       endif %}>{{ s.label() }}</a>
-    {% endfor %}
-</nav>
-<nav class="sort">
-    <a href="/?sort=new{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "new"
-    %} class="active"{% endif %}>New</a>
-    <a href="/?sort=top{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "top"
-    %} class="active"{% endif %}>Top</a>
-</nav>
+<div class="filter-bar">
+    <nav class="filters">
+        <a href="/?sort={{ current_sort }}" {% if current_status== "" %} class="active"{% endif %}>All</a>
+        {% for s in all_statuses %}
+        <a href="/?status={{ s.as_str() }}&sort={{ current_sort }}" {% if current_status== s.as_str() %} class="active" {%
+           endif %}>{{ s.label() }}</a>
+        {% endfor %}
+    </nav>
+    <nav class="sort">
+        <a href="/?sort=new{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "new"
+        %} class="active"{% endif %}>New</a>
+        <a href="/?sort=top{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "top"
+        %} class="active"{% endif %}>Top</a>
+    </nav>
+</div>
 
 <ul class="idea-list">
     {% for item in ideas %}
