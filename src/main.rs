@@ -1,4 +1,5 @@
 mod admin;
+mod changelog;
 mod comments;
 mod error;
 mod ideas;
@@ -8,6 +9,7 @@ mod templates;
 mod validation;
 
 use crate::admin::admin_router;
+use crate::changelog::changelog_router;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use axum::extract::State;
 use axum::{Router, routing::get};
@@ -55,10 +57,11 @@ async fn main() {
         .await
         .expect("failed to run migrations");
 
-    let default_org_id: i64 = sqlx::query_scalar("SELECT id FROM organizations WHERE slug = 'default'")
-        .fetch_one(&db)
-        .await
-        .expect("default organization not seeded");
+    let default_org_id: i64 =
+        sqlx::query_scalar("SELECT id FROM organizations WHERE slug = 'default'")
+            .fetch_one(&db)
+            .await
+            .expect("default organization not seeded");
 
     let session_store = SqliteStore::new(db.clone());
     session_store
@@ -75,7 +78,8 @@ async fn main() {
         .route("/healthz", get(healthz))
         .route("/static/{*path}", get(static_assets::serve))
         .nest("/ideas", ideas_router())
-        .merge(admin_router())
+        .nest("/changelogs", changelog_router())
+        .nest("/admin", admin_router())
         .with_state(AppState { db, default_org_id })
         .layer(session_layer)
         .layer(

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Submit a changelog{% endblock %}
+
+{% block content %}
+<h1>Submit a changelog</h1>
+<form class="idea-form" method="post" action="/changelogs">
+    <div>
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value="{{ title }}">
+        {% if let Some(e) = title_error %}<p class="error">{{ e }}</p>{% endif %}
+    </div>
+    <div>
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="6">{{ description }}</textarea>
+        {% if let Some(e) = description_error %}<p class="error">{{ e }}</p>{% endif %}
+    </div>
+    <button type="submit">Submit</button>
+</form>
+{% endblock %}

@@ -227,7 +227,7 @@ async fn idea_detail(
         all_statuses: IdeaStatus::ALL,
         comment_error: query.comment_error.is_some(),
     })
-    .into_response())
+        .into_response())
 }
 
 #[derive(Template)]
@@ -351,11 +351,11 @@ async fn create_idea(
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO ideas (org_id, title, description) VALUES (?, ?, ?) RETURNING id",
     )
-    .bind(state.default_org_id)
-    .bind(&title)
-    .bind(&description)
-    .fetch_one(&state.db)
-    .await?;
+        .bind(state.default_org_id)
+        .bind(&title)
+        .bind(&description)
+        .fetch_one(&state.db)
+        .await?;
 
     Ok(Redirect::to(&format!("/ideas/{id}")).into_response())
 }
