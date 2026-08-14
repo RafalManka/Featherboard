@@ -92,7 +92,7 @@ pub async fn list_ideas(
     session: Session,
     Query(query): Query<IdeaListQuery>,
 ) -> Result<HtmlTemplate<IdeaListTemplate>, AppError> {
-    let status_filter = query.status.as_deref().and_then(IdeaStatus::parse);
+    let status_filter: Option<IdeaStatus> = query.status.as_deref().and_then(IdeaStatus::parse);
     // Sort direction is picked via a Rust match over a fixed whitelist, never
     // string-interpolated from the raw query param directly: column/direction
     // can't be parameter-bound, so that would be a SQL-injection-shaped hole.

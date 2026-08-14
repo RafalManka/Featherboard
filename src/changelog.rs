@@ -1,5 +1,6 @@
 use crate::admin::is_admin;
 use crate::error::AppError;
+use crate::models::Changelog;
 use crate::templates::HtmlTemplate;
 use crate::validation::{DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use crate::{AppState, validation};
@@ -15,6 +16,7 @@ use tower_sessions::Session;
 pub fn changelog_router() -> Router<AppState> {
     Router::new()
         .route("/", post(create_changelog))
+        .route("/", get(list_changelogs))
         .route("/new", get(new_changelog_form))
 }
 
@@ -88,5 +90,36 @@ async fn create_changelog(
         .execute(&state.db)
         .await?;
 
-    Ok(Redirect::to("/").into_response())
+    Ok(Redirect::to("/changelogs").into_response())
+}
+#[derive(Template)]
+#[template(path = "changelog_list.html")]
+struct ChangelogListTemplate {
+    is_admin: bool,
+    changelogs: Vec<Changelog>,
+}
+
+async fn list_changelogs(
+    State(state): State<AppState>,
+    session: Session,
+) -> Result<Response, AppError> {
+    let is_admin = is_admin(&session).await?;
+
+    let sql = r#"
+        SELECT id, org_id, title, description, created_at
+        FROM changelogs
+        WHERE org_id = ?
+        ORDER BY created_at DESC, id DESC
+    "#;
+
+    let changelogs = sqlx::query_as::<_, Changelog>(sql)
+        .bind(state.default_org_id)
+        .fetch_all(&state.db)
+        .await?;
+
+    Ok(HtmlTemplate(ChangelogListTemplate {
+        is_admin,
+        changelogs,
+    })
+    .into_response())
 }

@@ -1,5 +1,29 @@
 #[derive(sqlx::FromRow)]
 #[allow(dead_code)]
+pub struct Changelog {
+    pub id: i64,
+    pub org_id: i64,
+    pub title: String,
+    pub description: String,
+    pub created_at: String,
+}
+
+impl Changelog {
+    pub fn excerpt(&self) -> String {
+        const MAX_CHARS: usize = 140;
+        if self.description.chars().count() <= MAX_CHARS {
+            return self.description.clone();
+        }
+        let truncated: String = self.description.chars().take(MAX_CHARS).collect();
+        format!("{}…", truncated.trim_end())
+    }
+
+    pub fn created_date(&self) -> &str {
+        self.created_at.get(..10).unwrap_or(&self.created_at)
+    }
+}
+#[derive(sqlx::FromRow)]
+#[allow(dead_code)]
 pub struct Idea {
     pub id: i64,
     pub org_id: i64,
