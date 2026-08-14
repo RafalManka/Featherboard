@@ -92,7 +92,7 @@ pub async fn list_ideas(
     session: Session,
     Query(query): Query<IdeaListQuery>,
 ) -> Result<HtmlTemplate<IdeaListTemplate>, AppError> {
-    let status_filter = query.status.as_deref().and_then(IdeaStatus::parse);
+    let status_filter: Option<IdeaStatus> = query.status.as_deref().and_then(IdeaStatus::parse);
     // Sort direction is picked via a Rust match over a fixed whitelist, never
     // string-interpolated from the raw query param directly: column/direction
     // can't be parameter-bound, so that would be a SQL-injection-shaped hole.
@@ -227,7 +227,7 @@ async fn idea_detail(
         all_statuses: IdeaStatus::ALL,
         comment_error: query.comment_error.is_some(),
     })
-    .into_response())
+        .into_response())
 }
 
 #[derive(Template)]
@@ -351,11 +351,11 @@ async fn create_idea(
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO ideas (org_id, title, description) VALUES (?, ?, ?) RETURNING id",
     )
-    .bind(state.default_org_id)
-    .bind(&title)
-    .bind(&description)
-    .fetch_one(&state.db)
-    .await?;
+        .bind(state.default_org_id)
+        .bind(&title)
+        .bind(&description)
+        .fetch_one(&state.db)
+        .await?;
 
     Ok(Redirect::to(&format!("/ideas/{id}")).into_response())
 }
