@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{{ changelog.title }}{% endblock %}
+
+{% block content %}
+<p><a class="back-link" href="/changelogs">&larr; Back to changelogs</a></p>
+
+<div class="idea-detail-card">
+    <div class="idea-main">
+        <h1>{{ changelog.title }}</h1>
+        <p class="idea-description">{{ changelog.description }}</p>
+        <div class="idea-meta">
+            <time>{{ changelog.created_date() }}</time>
+        </div>
+    </div>
+</div>
+{% endblock %}

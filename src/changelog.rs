@@ -5,7 +5,7 @@ use crate::templates::HtmlTemplate;
 use crate::validation::{DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use crate::{AppState, validation};
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
@@ -17,6 +17,7 @@ pub fn changelog_router() -> Router<AppState> {
     Router::new()
         .route("/", post(create_changelog))
         .route("/", get(list_changelogs))
+        .route("/{id}", get(changelog_detail))
         .route("/new", get(new_changelog_form))
 }
 
@@ -122,4 +123,33 @@ async fn list_changelogs(
         changelogs,
     })
     .into_response())
+}
+
+#[derive(Template)]
+#[template(path = "changelog_detail.html")]
+struct ChangelogDetailTemplate {
+    changelog: Changelog,
+}
+
+async fn changelog_detail(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Response, AppError> {
+    let sql = r#"
+        SELECT id, org_id, title, description, created_at
+        FROM changelogs
+        WHERE org_id = ? AND id = ?
+    "#;
+
+    let changelog = sqlx::query_as::<_, Changelog>(sql)
+        .bind(state.default_org_id)
+        .bind(id)
+        .fetch_optional(&state.db)
+        .await?;
+
+    let Some(changelog) = changelog else {
+        return Ok((StatusCode::NOT_FOUND, "changelog not found").into_response());
+    };
+
+    Ok(HtmlTemplate(ChangelogDetailTemplate { changelog }).into_response())
 }
