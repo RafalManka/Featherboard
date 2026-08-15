@@ -21,8 +21,11 @@ pub fn changelog_router() -> Router<AppState> {
         .route("/new", get(new_changelog_form))
 }
 
-async fn new_changelog_form(session: Session) -> Result<Response, AppError> {
-    if !is_admin(&session).await? {
+async fn new_changelog_form(
+    State(state): State<AppState>,
+    session: Session,
+) -> Result<Response, AppError> {
+    if !is_admin(&session, &state.db).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -55,7 +58,7 @@ async fn create_changelog(
     session: Session,
     Form(form): Form<CreateChangelogForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session).await? {
+    if !is_admin(&session, &state.db).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -104,7 +107,7 @@ async fn list_changelogs(
     State(state): State<AppState>,
     session: Session,
 ) -> Result<Response, AppError> {
-    let is_admin = is_admin(&session).await?;
+    let is_admin = is_admin(&session, &state.db).await?;
 
     let sql = r#"
         SELECT id, org_id, title, description, created_at

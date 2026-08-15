@@ -9,6 +9,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
+use sqlx::SqlitePool;
 use tower_sessions::Session;
 
 pub fn admin_router() -> Router<AppState> {
@@ -22,8 +23,24 @@ pub fn idea_status_router() -> Router<AppState> {
     Router::new().route("/{id}/status", post(update_status))
 }
 
-pub async fn is_admin(session: &Session) -> Result<bool, AppError> {
-    Ok(session.get::<bool>("is_admin").await?.unwrap_or(false))
+pub async fn is_admin(session: &Session, db: &SqlitePool) -> Result<bool, AppError> {
+    let Some(user_id) = session.get::<i64>("user_id").await? else {
+        return Ok(false);
+    };
+
+    let sql = r#"
+        SELECT is_admin
+        FROM users
+        WHERE id = ?
+    "#;
+
+    let is_admin = sqlx::query_scalar(sql)
+        .bind(user_id)
+        .fetch_optional(db)
+        .await?
+        .unwrap_or(false);
+
+    Ok(is_admin)
 }
 
 #[derive(Template)]
@@ -89,7 +106,7 @@ async fn update_status(
     Path(id): Path<i64>,
     Form(form): Form<UpdateStatusForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session).await? {
+    if !is_admin(&session, &state.db).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
     let Some(status) = IdeaStatus::parse(&form.status) else {

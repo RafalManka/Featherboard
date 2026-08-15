@@ -1,5 +1,6 @@
 mod admin;
 mod auth;
+mod auth_github;
 mod changelog;
 mod comments;
 mod error;
