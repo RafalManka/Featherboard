@@ -1,4 +1,5 @@
 mod admin;
+mod auth;
 mod changelog;
 mod comments;
 mod error;
@@ -9,6 +10,7 @@ mod templates;
 mod validation;
 
 use crate::admin::admin_router;
+use crate::auth::auth_router;
 use crate::changelog::changelog_router;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use axum::extract::State;
@@ -79,6 +81,7 @@ async fn main() {
         .route("/static/{*path}", get(static_assets::serve))
         .nest("/ideas", ideas_router())
         .nest("/changelogs", changelog_router())
+        .nest("/auth", auth_router())
         .nest("/admin", admin_router())
         .with_state(AppState { db, default_org_id })
         .layer(session_layer)
