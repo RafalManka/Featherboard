@@ -57,7 +57,7 @@ async fn auth_github_callback(
     session: Session,
     Query(query): Query<GithubAuthQuery>,
 ) -> Result<Response, AppError> {
-    let Ok(client_secret) = std::env::var("GITHUB_CLIENT_SECRET") else {
+    let Some(client_secret) = current_org.github_client_secret.clone() else {
         return Ok((
             StatusCode::SERVICE_UNAVAILABLE,
             "GitHub login is not configured",
@@ -65,7 +65,7 @@ async fn auth_github_callback(
             .into_response());
     };
 
-    let Ok(client_id) = std::env::var("GITHUB_CLIENT_ID") else {
+    let Some(client_id) = current_org.github_client_id.clone() else {
         return Ok((
             StatusCode::SERVICE_UNAVAILABLE,
             "GitHub login is not configured",
@@ -168,7 +168,7 @@ async fn auth_github_callback(
 }
 
 async fn auth_github(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
-    let Ok(client_id) = std::env::var("GITHUB_CLIENT_ID") else {
+    let Some(client_id) = current_org.github_client_id else {
         return Ok((
             StatusCode::SERVICE_UNAVAILABLE,
             "GitHub login is not configured",

@@ -31,6 +31,8 @@ impl IntoResponse for CurrentOrgRejection {
 pub struct CurrentOrg {
     pub id: i64,
     pub slug: String,
+    pub github_client_secret: Option<String>,
+    pub github_client_id: Option<String>,
 }
 
 impl CurrentOrg {
@@ -50,7 +52,7 @@ impl FromRequestParts<AppState> for CurrentOrg {
         let slug: String = original_uri.path().split('/').skip(1).take(1).collect();
 
         let sql = r#"
-            SELECT id, slug
+            SELECT id, slug, github_client_secret, github_client_id
             FROM organizations
             WHERE slug = ?
         "#;

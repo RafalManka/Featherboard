@@ -17,6 +17,8 @@ use crate::changelog::changelog_router;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use crate::login::login_router;
 use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Router, routing::get};
 use error::AppError;
 use sqlx::SqlitePool;
@@ -79,6 +81,7 @@ async fn main() {
         .merge(login_router());
 
     let app = Router::new()
+        .route("/", get(root_redirect))
         .nest("/{slug}", app)
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
@@ -98,6 +101,24 @@ async fn main() {
 
     tracing::info!("listening on {addr}");
     axum::serve(listener, app).await.expect("server error");
+}
+
+async fn root_redirect(State(state): State<AppState>) -> Result<Response, AppError> {
+    let sql = r#"
+        SELECT slug
+        FROM organizations
+        ORDER BY id ASC
+        LIMIT 1
+    "#;
+
+    let slug = sqlx::query_scalar::<_, String>(&sql)
+        .fetch_optional(&state.db)
+        .await?;
+    
+    match slug {
+        None => Ok((StatusCode::NOT_FOUND, "organization not found").into_response()),
+        Some(slug) => Ok(Redirect::to(&format!("/{}", slug)).into_response()),
+    }
 }
 
 async fn healthz(State(state): State<AppState>) -> Result<&'static str, AppError> {
