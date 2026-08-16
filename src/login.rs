@@ -27,8 +27,8 @@ pub async fn is_logged_in(session: &Session) -> Result<bool, AppError> {
 }
 
 async fn login_form(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
-    let github_enabled = std::env::var("GITHUB_CLIENT_ID").ok().is_some()
-        && std::env::var("GITHUB_CLIENT_SECRET").ok().is_some();
+    let github_enabled =
+        current_org.github_client_secret.is_some() && current_org.github_client_id.is_some();
 
     Ok(HtmlTemplate(AdminLoginTemplate {
         org_slug: current_org.slug,
