@@ -2,6 +2,7 @@ use crate::admin::is_admin;
 use crate::error::AppError;
 use crate::login::is_logged_in;
 use crate::models::Changelog;
+use crate::org::CurrentOrg;
 use crate::templates::HtmlTemplate;
 use crate::validation::{DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use crate::{AppState, validation};
@@ -24,6 +25,7 @@ pub fn changelog_router() -> Router<AppState> {
 
 async fn new_changelog_form(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
     if !is_admin(&session, &state.db).await? {
@@ -31,6 +33,7 @@ async fn new_changelog_form(
     }
 
     Ok(HtmlTemplate(ChangelogFormTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         title: String::new(),
         description: String::new(),
@@ -49,6 +52,7 @@ pub struct CreateChangelogForm {
 #[derive(Template)]
 #[template(path = "changelog_form.html")]
 struct ChangelogFormTemplate {
+    org_slug: String,
     title: String,
     is_logged_in: bool,
     description: String,
@@ -58,6 +62,7 @@ struct ChangelogFormTemplate {
 
 async fn create_changelog(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
     Form(form): Form<CreateChangelogForm>,
 ) -> Result<Response, AppError> {
@@ -81,6 +86,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
+                org_slug: current_org.slug,
                 is_logged_in: is_logged_in(&session).await?,
                 title,
                 description,
@@ -92,17 +98,18 @@ async fn create_changelog(
     }
 
     sqlx::query("INSERT INTO changelogs (org_id, title, description) VALUES (?, ?, ?)")
-        .bind(state.default_org_id)
+        .bind(current_org.id)
         .bind(&title)
         .bind(&description)
         .execute(&state.db)
         .await?;
 
-    Ok(Redirect::to("/changelogs").into_response())
+    Ok(Redirect::to(&current_org.path("/changelogs".to_string())).into_response())
 }
 #[derive(Template)]
 #[template(path = "changelog_list.html")]
 struct ChangelogListTemplate {
+    org_slug: String,
     is_logged_in: bool,
     is_admin: bool,
     changelogs: Vec<Changelog>,
@@ -110,6 +117,7 @@ struct ChangelogListTemplate {
 
 async fn list_changelogs(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
     let is_admin = is_admin(&session, &state.db).await?;
@@ -122,11 +130,12 @@ async fn list_changelogs(
     "#;
 
     let changelogs = sqlx::query_as::<_, Changelog>(sql)
-        .bind(state.default_org_id)
+        .bind(current_org.id)
         .fetch_all(&state.db)
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         is_admin,
         changelogs,
@@ -137,14 +146,21 @@ async fn list_changelogs(
 #[derive(Template)]
 #[template(path = "changelog_detail.html")]
 struct ChangelogDetailTemplate {
+    org_slug: String,
     is_logged_in: bool,
     changelog: Changelog,
 }
 
+#[derive(Deserialize)]
+struct IdParam {
+    id: i64,
+}
+
 async fn changelog_detail(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
-    Path(id): Path<i64>,
+    Path(id): Path<IdParam>,
 ) -> Result<Response, AppError> {
     let sql = r#"
         SELECT id, org_id, title, description, created_at
@@ -153,8 +169,8 @@ async fn changelog_detail(
     "#;
 
     let changelog = sqlx::query_as::<_, Changelog>(sql)
-        .bind(state.default_org_id)
-        .bind(id)
+        .bind(current_org.id)
+        .bind(id.id)
         .fetch_optional(&state.db)
         .await?;
 
@@ -163,6 +179,7 @@ async fn changelog_detail(
     };
 
     Ok(HtmlTemplate(ChangelogDetailTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         changelog,
     })

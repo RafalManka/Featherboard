@@ -7,6 +7,7 @@ mod error;
 mod ideas;
 mod login;
 mod models;
+mod org;
 mod static_assets;
 mod templates;
 mod validation;
@@ -14,6 +15,7 @@ mod validation;
 use crate::auth::auth_router;
 use crate::changelog::changelog_router;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
+use crate::login::login_router;
 use axum::extract::State;
 use axum::{Router, routing::get};
 use error::AppError;
@@ -27,12 +29,10 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
-use crate::login::login_router;
 
 #[derive(Clone)]
 struct AppState {
     db: SqlitePool,
-    default_org_id: i64,
 }
 
 #[tokio::main]
@@ -61,12 +61,6 @@ async fn main() {
         .await
         .expect("failed to run migrations");
 
-    let default_org_id: i64 =
-        sqlx::query_scalar("SELECT id FROM organizations WHERE slug = 'default'")
-            .fetch_one(&db)
-            .await
-            .expect("default organization not seeded");
-
     let session_store = SqliteStore::new(db.clone());
     session_store
         .migrate()
@@ -79,13 +73,16 @@ async fn main() {
     let app = Router::new()
         .route("/", get(list_ideas))
         .route("/roadmap", get(roadmap))
-        .route("/healthz", get(healthz))
-        .route("/static/{*path}", get(static_assets::serve))
         .nest("/ideas", ideas_router())
         .nest("/changelogs", changelog_router())
         .nest("/auth", auth_router())
-        .merge(login_router())
-        .with_state(AppState { db, default_org_id })
+        .merge(login_router());
+
+    let app = Router::new()
+        .nest("/{slug}", app)
+        .route("/static/{*path}", get(static_assets::serve))
+        .route("/healthz", get(healthz))
+        .with_state(AppState { db })
         .layer(session_layer)
         .layer(
             TraceLayer::new_for_http()

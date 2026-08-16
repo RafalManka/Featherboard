@@ -4,7 +4,7 @@
 
 {% block content %}
 <h1>Submit an idea</h1>
-<form class="idea-form" method="post" action="/ideas">
+<form class="idea-form" method="post" action="/{{ org_slug}}/ideas">
     <div>
         <label for="title">Title</label>
         <input type="text" id="title" name="title" value="{{ title }}">

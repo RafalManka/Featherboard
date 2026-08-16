@@ -1,5 +1,6 @@
 use crate::AppState;
 use crate::error::AppError;
+use crate::org::CurrentOrg;
 use axum::Router;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -52,6 +53,7 @@ struct GithubEmail {
 
 async fn auth_github_callback(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
     Query(query): Query<GithubAuthQuery>,
 ) -> Result<Response, AppError> {
@@ -85,7 +87,10 @@ async fn auth_github_callback(
         .header("Accept", "application/json")
         .form(&GithubAccessToken {
             code: query.code,
-            redirect_uri: "http://localhost:3000/auth/github/callback".to_string(),
+            redirect_uri: format!(
+                "http://localhost:3000/{}/auth/github/callback",
+                current_org.slug
+            ),
             client_id,
             client_secret,
         })
@@ -149,7 +154,7 @@ async fn auth_github_callback(
     "#;
 
     let user_id: i64 = sqlx::query_scalar(sql)
-        .bind(state.default_org_id)
+        .bind(current_org.id)
         .bind("github")
         .bind(response.id.to_string())
         .bind(email)
@@ -159,10 +164,10 @@ async fn auth_github_callback(
 
     session.insert("user_id", user_id).await?;
 
-    Ok(Redirect::to("/").into_response())
+    Ok(Redirect::to(&current_org.path(String::new())).into_response())
 }
 
-async fn auth_github(session: Session) -> Result<Response, AppError> {
+async fn auth_github(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
     let Ok(client_id) = std::env::var("GITHUB_CLIENT_ID") else {
         return Ok((
             StatusCode::SERVICE_UNAVAILABLE,
@@ -177,7 +182,12 @@ async fn auth_github(session: Session) -> Result<Response, AppError> {
 
     let uri = format!(
         "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}&scope=read:user+user:email",
-        client_id, "http://localhost:3000/auth/github/callback", state
+        client_id,
+        format!(
+            "http://localhost:3000/{}/auth/github/callback",
+            current_org.slug
+        ),
+        state
     );
 
     Ok(Redirect::to(&uri).into_response())
