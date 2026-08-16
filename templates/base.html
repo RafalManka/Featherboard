@@ -11,15 +11,15 @@
 <body class="{% block body_class %}{% endblock %}">
 <div class="nav-bar">
     <nav class="main-nav">
-        <a href="/">Board</a>
-        <a href="/roadmap">Roadmap</a>
-        <a href="/changelogs">Changelog</a>
+        <a href="/{{ org_slug }}">Board</a>
+        <a href="/{{ org_slug }}/roadmap">Roadmap</a>
+        <a href="/{{ org_slug }}/changelogs">Changelog</a>
     </nav>
     <nav class="login-nav">
         {% if is_logged_in %}
-        <a class="cta-outline" href="/logout"><span>Log out</span></a>
+        <a class="cta-outline" href="/{{ org_slug }}/logout"><span>Log out</span></a>
         {% else %}
-        <a class="cta-outline" href="/login"><span>Log in</span></a>
+        <a class="cta-outline" href="/{{ org_slug }}/login"><span>Log in</span></a>
         {% endif %}
     </nav>
 </div>

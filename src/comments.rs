@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::Comment;
+use crate::org::CurrentOrg;
 use crate::validation::{
     self, AUTHOR_NAME_MAX, AUTHOR_NAME_MIN, COMMENT_BODY_MAX, COMMENT_BODY_MIN,
 };
@@ -62,10 +63,14 @@ pub struct CreateCommentForm {
     body: String,
     parent_comment_id: Option<i64>,
 }
-
+#[derive(Deserialize)]
+struct IdParam {
+    id: i64,
+}
 async fn create_comment(
     State(state): State<AppState>,
-    Path(idea_id): Path<i64>,
+    Path(id): Path<IdParam>,
+    current_org: CurrentOrg,
     Form(form): Form<CreateCommentForm>,
 ) -> Result<Response, AppError> {
     let author_name = form.author_name.trim().to_string();
@@ -77,7 +82,10 @@ async fn create_comment(
         validation::validate_len(&body, "Comment", COMMENT_BODY_MIN, COMMENT_BODY_MAX).err();
 
     if author_error.is_some() || body_error.is_some() {
-        return Ok(Redirect::to(&format!("/ideas/{idea_id}?comment_error=1")).into_response());
+        return Ok(
+            Redirect::to(&current_org.path(format!("/ideas/{}?comment_error=1", id.id)))
+                .into_response(),
+        );
     }
 
     // Enforce 2-level threading: a reply's parent must belong to this idea and
@@ -89,7 +97,7 @@ async fn create_comment(
                 "SELECT EXISTS(SELECT 1 FROM comments WHERE id = ? AND idea_id = ? AND parent_comment_id IS NULL)",
             )
             .bind(parent_id)
-            .bind(idea_id)
+            .bind(id.id)
             .fetch_one(&state.db)
             .await?;
             is_valid_parent.then_some(parent_id)
@@ -100,12 +108,12 @@ async fn create_comment(
     sqlx::query(
         "INSERT INTO comments (idea_id, parent_comment_id, author_name, body) VALUES (?, ?, ?, ?)",
     )
-    .bind(idea_id)
+    .bind(id.id)
     .bind(parent_comment_id)
     .bind(&author_name)
     .bind(&body)
     .execute(&state.db)
     .await?;
 
-    Ok(Redirect::to(&format!("/ideas/{idea_id}")).into_response())
+    Ok(Redirect::to(&current_org.path(format!("/ideas/{}", id.id))).into_response())
 }

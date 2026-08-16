@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::IdeaStatus;
+use crate::org::CurrentOrg;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
@@ -40,10 +41,15 @@ pub struct UpdateStatusForm {
     status: String,
 }
 
+#[derive(Deserialize)]
+struct IdParam {
+    id: i64,
+}
 async fn update_status(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
-    Path(id): Path<i64>,
+    Path(id): Path<IdParam>,
     Form(form): Form<UpdateStatusForm>,
 ) -> Result<Response, AppError> {
     if !is_admin(&session, &state.db).await? {
@@ -54,8 +60,8 @@ async fn update_status(
     };
     sqlx::query("UPDATE ideas SET status = ? WHERE id = ?")
         .bind(status.as_str())
-        .bind(id)
+        .bind(id.id)
         .execute(&state.db)
         .await?;
-    Ok(Redirect::to(&format!("/ideas/{id}")).into_response())
+    Ok(Redirect::to(&current_org.path(format!("/ideas/{}", id.id))).into_response())
 }

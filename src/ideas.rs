@@ -4,6 +4,7 @@ use crate::comments::{self, CommentWithReplies};
 use crate::error::AppError;
 use crate::login::is_logged_in;
 use crate::models::{Idea, IdeaStatus};
+use crate::org::CurrentOrg;
 use crate::templates::HtmlTemplate;
 use crate::validation::{self, DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use askama::Template;
@@ -76,6 +77,7 @@ async fn voted_idea_ids(state: &AppState, session: &Session) -> Result<HashSet<i
 #[derive(Template)]
 #[template(path = "idea_list.html")]
 pub struct IdeaListTemplate {
+    org_slug: String,
     is_logged_in: bool,
     ideas: Vec<IdeaListItem>,
     current_status: String,
@@ -90,6 +92,7 @@ pub struct IdeaListQuery {
 }
 
 pub async fn list_ideas(
+    current_org: CurrentOrg,
     State(state): State<AppState>,
     session: Session,
     Query(query): Query<IdeaListQuery>,
@@ -111,7 +114,7 @@ pub async fn list_ideas(
     }
     sql.push_str(&format!(" GROUP BY i.id ORDER BY {order_by}"));
 
-    let mut q = sqlx::query_as::<_, IdeaRow>(&sql).bind(state.default_org_id);
+    let mut q = sqlx::query_as::<_, IdeaRow>(&sql).bind(current_org.id);
     if let Some(status) = status_filter {
         q = q.bind(status.as_str());
     }
@@ -132,6 +135,7 @@ pub async fn list_ideas(
         .collect();
 
     Ok(HtmlTemplate(IdeaListTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         ideas,
         current_status: status_filter
@@ -146,19 +150,21 @@ pub async fn list_ideas(
 #[derive(Template)]
 #[template(path = "roadmap.html")]
 pub struct RoadmapTemplate {
+    org_slug: String,
     is_logged_in: bool,
     groups: Vec<(IdeaStatus, Vec<IdeaListItem>)>,
 }
 
 pub async fn roadmap(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
 ) -> Result<HtmlTemplate<RoadmapTemplate>, AppError> {
     let sql = format!(
         "{IDEAS_WITH_VOTE_COUNT} WHERE i.org_id = ? GROUP BY i.id ORDER BY vote_count DESC, i.id DESC"
     );
     let rows: Vec<IdeaRow> = sqlx::query_as(&sql)
-        .bind(state.default_org_id)
+        .bind(current_org.id)
         .fetch_all(&state.db)
         .await?;
 
@@ -185,6 +191,7 @@ pub async fn roadmap(
     }
 
     Ok(HtmlTemplate(RoadmapTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         groups,
     }))
@@ -193,6 +200,7 @@ pub async fn roadmap(
 #[derive(Template)]
 #[template(path = "idea_detail.html")]
 struct IdeaDetailTemplate {
+    org_slug: String,
     is_logged_in: bool,
     item: IdeaListItem,
     comments: Vec<CommentWithReplies>,
@@ -206,16 +214,22 @@ pub struct IdeaDetailQuery {
     comment_error: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct IdParam {
+    id: i64,
+}
+
 async fn idea_detail(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
-    Path(id): Path<i64>,
+    Path(id): Path<IdParam>,
     Query(query): Query<IdeaDetailQuery>,
 ) -> Result<Response, AppError> {
     let sql = format!("{IDEAS_WITH_VOTE_COUNT} WHERE i.id = ? AND i.org_id = ? GROUP BY i.id");
     let row: Option<IdeaRow> = sqlx::query_as(&sql)
-        .bind(id)
-        .bind(state.default_org_id)
+        .bind(id.id)
+        .bind(current_org.id)
         .fetch_optional(&state.db)
         .await?;
 
@@ -230,10 +244,11 @@ async fn idea_detail(
         vote_count,
         voted,
     };
-    let comments = comments::comments_for_idea(&state, id).await?;
+    let comments = comments::comments_for_idea(&state, id.id).await?;
     let is_admin = admin::is_admin(&session, &state.db).await?;
 
     Ok(HtmlTemplate(IdeaDetailTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         item,
         comments,
@@ -253,7 +268,7 @@ struct VoteButtonTemplate {
 async fn vote(
     State(state): State<AppState>,
     session: Session,
-    Path(id): Path<i64>,
+    Path(id): Path<IdParam>,
 ) -> Result<Response, AppError> {
     if session.id().is_none() {
         // Writing data marks the session modified, which is what makes the
@@ -272,21 +287,21 @@ async fn vote(
 
     let already_voted: bool =
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM votes WHERE idea_id = ? AND voter_id = ?)")
-            .bind(id)
+            .bind(id.id)
             .bind(&voter_id)
             .fetch_one(&state.db)
             .await?;
 
     let voted = if already_voted {
         sqlx::query("DELETE FROM votes WHERE idea_id = ? AND voter_id = ?")
-            .bind(id)
+            .bind(id.id)
             .bind(&voter_id)
             .execute(&state.db)
             .await?;
         false
     } else {
         sqlx::query("INSERT INTO votes (idea_id, voter_id) VALUES (?, ?)")
-            .bind(id)
+            .bind(id.id)
             .bind(&voter_id)
             .execute(&state.db)
             .await?;
@@ -295,7 +310,7 @@ async fn vote(
 
     let sql = format!("{IDEAS_WITH_VOTE_COUNT} WHERE i.id = ? GROUP BY i.id");
     let row: Option<IdeaRow> = sqlx::query_as(&sql)
-        .bind(id)
+        .bind(id.id)
         .fetch_optional(&state.db)
         .await?;
 
@@ -316,6 +331,7 @@ async fn vote(
 #[derive(Template)]
 #[template(path = "idea_form.html")]
 struct IdeaFormTemplate {
+    org_slug: String,
     is_logged_in: bool,
     title: String,
     description: String,
@@ -323,8 +339,9 @@ struct IdeaFormTemplate {
     description_error: Option<String>,
 }
 
-async fn new_idea_form(session: Session) -> Result<Response, AppError> {
+async fn new_idea_form(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
     Ok(HtmlTemplate(IdeaFormTemplate {
+        org_slug: current_org.slug,
         is_logged_in: is_logged_in(&session).await?,
         title: String::new(),
         description: String::new(),
@@ -342,6 +359,7 @@ pub struct CreateIdeaForm {
 
 async fn create_idea(
     State(state): State<AppState>,
+    current_org: CurrentOrg,
     session: Session,
     Form(form): Form<CreateIdeaForm>,
 ) -> Result<Response, AppError> {
@@ -361,6 +379,7 @@ async fn create_idea(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(IdeaFormTemplate {
+                org_slug: current_org.slug,
                 is_logged_in: is_logged_in(&session).await?,
                 title,
                 description,
@@ -374,11 +393,11 @@ async fn create_idea(
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO ideas (org_id, title, description) VALUES (?, ?, ?) RETURNING id",
     )
-    .bind(state.default_org_id)
+    .bind(current_org.id)
     .bind(&title)
     .bind(&description)
     .fetch_one(&state.db)
     .await?;
 
-    Ok(Redirect::to(&format!("/ideas/{id}")).into_response())
+    Ok(Redirect::to(&current_org.path(format!("/ideas/{id}"))).into_response())
 }
