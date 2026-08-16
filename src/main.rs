@@ -1,15 +1,16 @@
 mod admin;
 mod auth;
+mod auth_github;
 mod changelog;
 mod comments;
 mod error;
 mod ideas;
+mod login;
 mod models;
 mod static_assets;
 mod templates;
 mod validation;
 
-use crate::admin::admin_router;
 use crate::auth::auth_router;
 use crate::changelog::changelog_router;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
@@ -26,6 +27,7 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
+use crate::login::login_router;
 
 #[derive(Clone)]
 struct AppState {
@@ -82,7 +84,7 @@ async fn main() {
         .nest("/ideas", ideas_router())
         .nest("/changelogs", changelog_router())
         .nest("/auth", auth_router())
-        .nest("/admin", admin_router())
+        .merge(login_router())
         .with_state(AppState { db, default_org_id })
         .layer(session_layer)
         .layer(

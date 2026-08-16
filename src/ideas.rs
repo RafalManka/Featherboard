@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::admin::{self, idea_status_router};
 use crate::comments::{self, CommentWithReplies};
 use crate::error::AppError;
+use crate::login::is_logged_in;
 use crate::models::{Idea, IdeaStatus};
 use crate::templates::HtmlTemplate;
 use crate::validation::{self, DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
@@ -75,6 +76,7 @@ async fn voted_idea_ids(state: &AppState, session: &Session) -> Result<HashSet<i
 #[derive(Template)]
 #[template(path = "idea_list.html")]
 pub struct IdeaListTemplate {
+    is_logged_in: bool,
     ideas: Vec<IdeaListItem>,
     current_status: String,
     current_sort: String,
@@ -130,8 +132,12 @@ pub async fn list_ideas(
         .collect();
 
     Ok(HtmlTemplate(IdeaListTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         ideas,
-        current_status: status_filter.map(IdeaStatus::as_str).unwrap_or("").to_string(),
+        current_status: status_filter
+            .map(IdeaStatus::as_str)
+            .unwrap_or("")
+            .to_string(),
         current_sort: if is_top_sort { "top" } else { "new" }.to_string(),
         all_statuses: IdeaStatus::ALL,
     }))
@@ -140,6 +146,7 @@ pub async fn list_ideas(
 #[derive(Template)]
 #[template(path = "roadmap.html")]
 pub struct RoadmapTemplate {
+    is_logged_in: bool,
     groups: Vec<(IdeaStatus, Vec<IdeaListItem>)>,
 }
 
@@ -156,8 +163,10 @@ pub async fn roadmap(
         .await?;
 
     let voted_ids = voted_idea_ids(&state, &session).await?;
-    let mut groups: Vec<(IdeaStatus, Vec<IdeaListItem>)> =
-        IdeaStatus::ALL.into_iter().map(|s| (s, Vec::new())).collect();
+    let mut groups: Vec<(IdeaStatus, Vec<IdeaListItem>)> = IdeaStatus::ALL
+        .into_iter()
+        .map(|s| (s, Vec::new()))
+        .collect();
 
     for row in rows {
         let Some(status) = IdeaStatus::parse(&row.status) else {
@@ -175,12 +184,16 @@ pub async fn roadmap(
         }
     }
 
-    Ok(HtmlTemplate(RoadmapTemplate { groups }))
+    Ok(HtmlTemplate(RoadmapTemplate {
+        is_logged_in: is_logged_in(&session).await?,
+        groups,
+    }))
 }
 
 #[derive(Template)]
 #[template(path = "idea_detail.html")]
 struct IdeaDetailTemplate {
+    is_logged_in: bool,
     item: IdeaListItem,
     comments: Vec<CommentWithReplies>,
     comment_error: bool,
@@ -218,16 +231,17 @@ async fn idea_detail(
         voted,
     };
     let comments = comments::comments_for_idea(&state, id).await?;
-    let is_admin = admin::is_admin(&session).await?;
+    let is_admin = admin::is_admin(&session, &state.db).await?;
 
     Ok(HtmlTemplate(IdeaDetailTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         item,
         comments,
         is_admin,
         all_statuses: IdeaStatus::ALL,
         comment_error: query.comment_error.is_some(),
     })
-        .into_response())
+    .into_response())
 }
 
 #[derive(Template)]
@@ -302,19 +316,22 @@ async fn vote(
 #[derive(Template)]
 #[template(path = "idea_form.html")]
 struct IdeaFormTemplate {
+    is_logged_in: bool,
     title: String,
     description: String,
     title_error: Option<String>,
     description_error: Option<String>,
 }
 
-async fn new_idea_form() -> HtmlTemplate<IdeaFormTemplate> {
-    HtmlTemplate(IdeaFormTemplate {
+async fn new_idea_form(session: Session) -> Result<Response, AppError> {
+    Ok(HtmlTemplate(IdeaFormTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
         description_error: None,
     })
+    .into_response())
 }
 
 #[derive(Deserialize)]
@@ -325,20 +342,26 @@ pub struct CreateIdeaForm {
 
 async fn create_idea(
     State(state): State<AppState>,
+    session: Session,
     Form(form): Form<CreateIdeaForm>,
 ) -> Result<Response, AppError> {
     let title = form.title.trim().to_string();
     let description = form.description.trim().to_string();
 
     let title_error = validation::validate_len(&title, "Title", TITLE_MIN, TITLE_MAX).err();
-    let description_error =
-        validation::validate_len(&description, "Description", DESCRIPTION_MIN, DESCRIPTION_MAX)
-            .err();
+    let description_error = validation::validate_len(
+        &description,
+        "Description",
+        DESCRIPTION_MIN,
+        DESCRIPTION_MAX,
+    )
+    .err();
 
     if title_error.is_some() || description_error.is_some() {
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(IdeaFormTemplate {
+                is_logged_in: is_logged_in(&session).await?,
                 title,
                 description,
                 title_error,
@@ -351,11 +374,11 @@ async fn create_idea(
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO ideas (org_id, title, description) VALUES (?, ?, ?) RETURNING id",
     )
-        .bind(state.default_org_id)
-        .bind(&title)
-        .bind(&description)
-        .fetch_one(&state.db)
-        .await?;
+    .bind(state.default_org_id)
+    .bind(&title)
+    .bind(&description)
+    .fetch_one(&state.db)
+    .await?;
 
     Ok(Redirect::to(&format!("/ideas/{id}")).into_response())
 }
