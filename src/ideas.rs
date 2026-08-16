@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::admin::{self, idea_status_router};
 use crate::comments::{self, CommentWithReplies};
 use crate::error::AppError;
+use crate::login::is_logged_in;
 use crate::models::{Idea, IdeaStatus};
 use crate::templates::HtmlTemplate;
 use crate::validation::{self, DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
@@ -75,6 +76,7 @@ async fn voted_idea_ids(state: &AppState, session: &Session) -> Result<HashSet<i
 #[derive(Template)]
 #[template(path = "idea_list.html")]
 pub struct IdeaListTemplate {
+    is_logged_in: bool,
     ideas: Vec<IdeaListItem>,
     current_status: String,
     current_sort: String,
@@ -130,6 +132,7 @@ pub async fn list_ideas(
         .collect();
 
     Ok(HtmlTemplate(IdeaListTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         ideas,
         current_status: status_filter
             .map(IdeaStatus::as_str)
@@ -143,6 +146,7 @@ pub async fn list_ideas(
 #[derive(Template)]
 #[template(path = "roadmap.html")]
 pub struct RoadmapTemplate {
+    is_logged_in: bool,
     groups: Vec<(IdeaStatus, Vec<IdeaListItem>)>,
 }
 
@@ -180,12 +184,16 @@ pub async fn roadmap(
         }
     }
 
-    Ok(HtmlTemplate(RoadmapTemplate { groups }))
+    Ok(HtmlTemplate(RoadmapTemplate {
+        is_logged_in: is_logged_in(&session).await?,
+        groups,
+    }))
 }
 
 #[derive(Template)]
 #[template(path = "idea_detail.html")]
 struct IdeaDetailTemplate {
+    is_logged_in: bool,
     item: IdeaListItem,
     comments: Vec<CommentWithReplies>,
     comment_error: bool,
@@ -226,6 +234,7 @@ async fn idea_detail(
     let is_admin = admin::is_admin(&session, &state.db).await?;
 
     Ok(HtmlTemplate(IdeaDetailTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         item,
         comments,
         is_admin,
@@ -307,19 +316,22 @@ async fn vote(
 #[derive(Template)]
 #[template(path = "idea_form.html")]
 struct IdeaFormTemplate {
+    is_logged_in: bool,
     title: String,
     description: String,
     title_error: Option<String>,
     description_error: Option<String>,
 }
 
-async fn new_idea_form() -> HtmlTemplate<IdeaFormTemplate> {
-    HtmlTemplate(IdeaFormTemplate {
+async fn new_idea_form(session: Session) -> Result<Response, AppError> {
+    Ok(HtmlTemplate(IdeaFormTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
         description_error: None,
     })
+    .into_response())
 }
 
 #[derive(Deserialize)]
@@ -330,6 +342,7 @@ pub struct CreateIdeaForm {
 
 async fn create_idea(
     State(state): State<AppState>,
+    session: Session,
     Form(form): Form<CreateIdeaForm>,
 ) -> Result<Response, AppError> {
     let title = form.title.trim().to_string();
@@ -348,6 +361,7 @@ async fn create_idea(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(IdeaFormTemplate {
+                is_logged_in: is_logged_in(&session).await?,
                 title,
                 description,
                 title_error,

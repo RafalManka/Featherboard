@@ -1,5 +1,6 @@
 use crate::admin::is_admin;
 use crate::error::AppError;
+use crate::login::is_logged_in;
 use crate::models::Changelog;
 use crate::templates::HtmlTemplate;
 use crate::validation::{DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
@@ -30,6 +31,7 @@ async fn new_changelog_form(
     }
 
     Ok(HtmlTemplate(ChangelogFormTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
@@ -48,6 +50,7 @@ pub struct CreateChangelogForm {
 #[template(path = "changelog_form.html")]
 struct ChangelogFormTemplate {
     title: String,
+    is_logged_in: bool,
     description: String,
     title_error: Option<String>,
     description_error: Option<String>,
@@ -78,6 +81,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
+                is_logged_in: is_logged_in(&session).await?,
                 title,
                 description,
                 title_error,
@@ -99,6 +103,7 @@ async fn create_changelog(
 #[derive(Template)]
 #[template(path = "changelog_list.html")]
 struct ChangelogListTemplate {
+    is_logged_in: bool,
     is_admin: bool,
     changelogs: Vec<Changelog>,
 }
@@ -122,6 +127,7 @@ async fn list_changelogs(
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
+        is_logged_in: is_logged_in(&session).await?,
         is_admin,
         changelogs,
     })
@@ -131,11 +137,13 @@ async fn list_changelogs(
 #[derive(Template)]
 #[template(path = "changelog_detail.html")]
 struct ChangelogDetailTemplate {
+    is_logged_in: bool,
     changelog: Changelog,
 }
 
 async fn changelog_detail(
     State(state): State<AppState>,
+    session: Session,
     Path(id): Path<i64>,
 ) -> Result<Response, AppError> {
     let sql = r#"
@@ -154,5 +162,9 @@ async fn changelog_detail(
         return Ok((StatusCode::NOT_FOUND, "changelog not found").into_response());
     };
 
-    Ok(HtmlTemplate(ChangelogDetailTemplate { changelog }).into_response())
+    Ok(HtmlTemplate(ChangelogDetailTemplate {
+        is_logged_in: is_logged_in(&session).await?,
+        changelog,
+    })
+    .into_response())
 }

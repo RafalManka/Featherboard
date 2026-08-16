@@ -51,6 +51,12 @@ a {
 }
 
 /* Top nav */
+.nav-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
 .main-nav {
     display: flex;
     gap: 1.25rem;
@@ -65,6 +71,17 @@ a {
     text-decoration: none;
 }
 
+.login-nav {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1rem 0;
+    margin-bottom: 0.5rem;
+}
+
+.login-nav a {
+    text-decoration: none;
+}
+
 .main-nav a:hover {
     color: var(--accent);
 }
@@ -74,6 +91,25 @@ a {
     font-size: 0.9rem;
     text-decoration: none;
     margin-bottom: 0.5rem;
+}
+
+.cta-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.05rem;
+    background: #fff;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.cta-outline:hover {
+    background: var(--accent);
+    color: #fff;
 }
 
 /* Submit CTA: full-width solid button */
@@ -444,4 +480,18 @@ details summary {
     body {
         max-width: 100%;
     }
+}
+
+.login-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    vertical-align: center;
+}
+
+.gh-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
 }
