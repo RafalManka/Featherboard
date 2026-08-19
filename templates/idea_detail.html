@@ -18,6 +18,17 @@
             </select>
             <button type="submit">Update status</button>
         </form>
+
+        <form class="status-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/changelog">
+            <select name="changelog_id">
+                <option value="" {% if item.idea.changelog_id.is_none() %}selected{% endif %}>None</option>
+                {% for c in all_changelogs %}
+                <option value="{{ c.id }}" {% if c.identifier() == item.idea.changelog_id %}selected{% endif %}>{{ c.title }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Update status</button>
+        </form>
+
         {% else %}
         <span class="status-pill {{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
         {% endif %}

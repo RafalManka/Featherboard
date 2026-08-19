@@ -18,6 +18,10 @@ impl Changelog {
         format!("{}…", truncated.trim_end())
     }
 
+    pub fn identifier(&self) -> Option<i64> {
+        Some(self.id)
+    }
+
     pub fn created_date(&self) -> &str {
         self.created_at.get(..10).unwrap_or(&self.created_at)
     }
@@ -31,6 +35,7 @@ pub struct Idea {
     pub description: String,
     pub status: String,
     pub created_at: String,
+    pub changelog_id: Option<i64>,
 }
 
 impl Idea {
