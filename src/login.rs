@@ -4,7 +4,7 @@ use crate::org::CurrentOrg;
 use crate::templates::HtmlTemplate;
 use askama::Template;
 use axum::Router;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use tower_sessions::Session;
 
@@ -40,5 +40,5 @@ async fn login_form(session: Session, current_org: CurrentOrg) -> Result<Respons
 
 async fn logout(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
     session.remove::<i64>("user_id").await?;
-    Ok(Redirect::to(&current_org.path(String::new())).into_response())
+    Ok(current_org.redirect(String::new()).into_response())
 }

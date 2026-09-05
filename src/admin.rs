@@ -4,8 +4,8 @@ use crate::models::IdeaStatus;
 use crate::org::CurrentOrg;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::post;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{delete, post};
 use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -16,6 +16,7 @@ pub fn idea_admin_router() -> Router<AppState> {
     Router::new()
         .route("/{id}/status", post(update_status))
         .route("/{id}/changelog", post(assign_changelog))
+        .route("/{id}", delete(delete_idea))
 }
 
 pub async fn is_admin(session: &Session, db: &SqlitePool) -> Result<bool, AppError> {
@@ -65,7 +66,9 @@ async fn update_status(
         .bind(id_path.id)
         .execute(&state.db)
         .await?;
-    Ok(Redirect::to(&current_org.path(format!("/ideas/{}", id_path.id))).into_response())
+    Ok(current_org
+        .redirect(format!("/ideas/{}", id_path.id))
+        .into_response())
 }
 
 #[derive(Deserialize)]
@@ -106,5 +109,25 @@ async fn assign_changelog(
         .execute(&state.db)
         .await?;
 
-    Ok(Redirect::to(&current_org.path(format!("/ideas/{}", id_path.id))).into_response())
+    Ok(current_org
+        .redirect(format!("/ideas/{}", id_path.id))
+        .into_response())
+}
+
+async fn delete_idea(
+    State(state): State<AppState>,
+    current_org: CurrentOrg,
+    session: Session,
+    Path(id_path): Path<IdParam>,
+) -> Result<Response, AppError> {
+    if !is_admin(&session, &state.db).await? {
+        return Ok(StatusCode::FORBIDDEN.into_response());
+    }
+    sqlx::query("DELETE FROM ideas WHERE id = ? AND org_id = ?")
+        .bind(id_path.id)
+        .bind(current_org.id)
+        .execute(&state.db)
+        .await?;
+
+    Ok((StatusCode::OK, current_org.hx_redirect(String::new())).into_response())
 }

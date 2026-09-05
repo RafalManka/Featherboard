@@ -1,5 +1,5 @@
 use axum::extract::Path;
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use rust_embed::RustEmbed;
 
@@ -9,7 +9,11 @@ struct Assets;
 
 pub async fn serve(Path(path): Path<String>) -> Response {
     match Assets::get(&path) {
-        Some(file) => ([(header::CONTENT_TYPE, file.metadata.mimetype())], file.data).into_response(),
+        Some(file) => (
+            [(header::CONTENT_TYPE, file.metadata.mimetype())],
+            file.data,
+        )
+            .into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
     }
 }

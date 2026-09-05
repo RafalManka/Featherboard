@@ -10,7 +10,7 @@ use crate::validation::{self, DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE
 use askama::Template;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
@@ -26,8 +26,6 @@ pub fn ideas_router() -> Router<AppState> {
         .merge(comments::comments_router())
         .merge(idea_admin_router())
 }
-
-
 
 #[derive(sqlx::FromRow)]
 struct IdeaRow {
@@ -483,5 +481,5 @@ async fn create_idea(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(Redirect::to(&current_org.path(format!("/ideas/{id}"))).into_response())
+    Ok(current_org.redirect(format!("/ideas/{id}")).into_response())
 }
