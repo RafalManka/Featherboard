@@ -3,7 +3,7 @@ use crate::error::AppError;
 use axum::extract::{FromRequestParts, OriginalUri};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::response::{IntoResponse, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use std::convert::Infallible;
 
 pub enum CurrentOrgRejection {
@@ -36,8 +36,14 @@ pub struct CurrentOrg {
 }
 
 impl CurrentOrg {
-    pub fn path(self, path: String) -> String {
+    fn path(self, path: String) -> String {
         format!("/{}{}", self.slug, path)
+    }
+    pub fn redirect(self, p: String) -> Redirect {
+        Redirect::to(self.path(p).as_str())
+    }
+    pub fn hx_redirect(self, p: String) -> [(&'static str, String); 1] {
+        [("HX-Redirect", self.path(p))]
     }
 }
 

@@ -1,16 +1,16 @@
 use crate::AppState;
-use crate::admin::{self, idea_status_router};
+use crate::admin::{self, idea_admin_router};
 use crate::comments::{self, CommentWithReplies};
 use crate::error::AppError;
 use crate::login::is_logged_in;
-use crate::models::{Idea, IdeaStatus};
+use crate::models::{Changelog, Idea, IdeaStatus};
 use crate::org::CurrentOrg;
 use crate::templates::HtmlTemplate;
 use crate::validation::{self, DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use askama::Template;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
@@ -24,7 +24,7 @@ pub fn ideas_router() -> Router<AppState> {
         .route("/{id}", get(idea_detail))
         .route("/{id}/vote", post(vote))
         .merge(comments::comments_router())
-        .merge(idea_status_router())
+        .merge(idea_admin_router())
 }
 
 #[derive(sqlx::FromRow)]
@@ -36,6 +36,7 @@ struct IdeaRow {
     status: String,
     created_at: String,
     vote_count: i64,
+    changelog_id: Option<i64>,
 }
 
 impl IdeaRow {
@@ -47,6 +48,7 @@ impl IdeaRow {
             description: self.description,
             status: self.status,
             created_at: self.created_at,
+            changelog_id: self.changelog_id,
         }
     }
 }
@@ -56,9 +58,6 @@ struct IdeaListItem {
     vote_count: i64,
     voted: bool,
 }
-
-const IDEAS_WITH_VOTE_COUNT: &str = "SELECT i.id, i.org_id, i.title, i.description, i.status, i.created_at, COUNT(v.id) AS vote_count \
-     FROM ideas i LEFT JOIN votes v ON v.idea_id = i.id";
 
 /// Session ids are only assigned once the session store has actually persisted
 /// a record. Anonymous visitors who haven't voted yet may have no id yet, in
@@ -108,7 +107,21 @@ pub async fn list_ideas(
         "i.created_at DESC"
     };
 
-    let mut sql = format!("{IDEAS_WITH_VOTE_COUNT} WHERE i.org_id = ?");
+    let mut sql = r#"
+            SELECT
+                i.id,
+                i.org_id,
+                i.title,
+                i.description,
+                i.status,
+                i.created_at,
+                i.changelog_id,
+                COUNT(v.id) AS vote_count
+            FROM ideas i
+                LEFT JOIN votes v ON v.idea_id = i.id
+            WHERE i.org_id = ?
+        "#
+    .to_string();
     if status_filter.is_some() {
         sql.push_str(" AND i.status = ?");
     }
@@ -160,9 +173,23 @@ pub async fn roadmap(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<HtmlTemplate<RoadmapTemplate>, AppError> {
-    let sql = format!(
-        "{IDEAS_WITH_VOTE_COUNT} WHERE i.org_id = ? GROUP BY i.id ORDER BY vote_count DESC, i.id DESC"
-    );
+    let sql = r#"
+        SELECT
+            i.id,
+            i.org_id,
+            i.title,
+            i.description,
+            i.status,
+            i.created_at,
+            i.changelog_id,
+            COUNT(v.id) AS vote_count
+        FROM ideas i
+            LEFT JOIN votes v ON v.idea_id = i.id
+        WHERE i.org_id = ?
+        GROUP BY i.id
+        ORDER BY vote_count DESC, i.id DESC
+    "#;
+
     let rows: Vec<IdeaRow> = sqlx::query_as(&sql)
         .bind(current_org.id)
         .fetch_all(&state.db)
@@ -207,6 +234,7 @@ struct IdeaDetailTemplate {
     comment_error: bool,
     is_admin: bool,
     all_statuses: [IdeaStatus; 5],
+    all_changelogs: Vec<Changelog>,
 }
 
 #[derive(Deserialize)]
@@ -226,7 +254,21 @@ async fn idea_detail(
     Path(id): Path<IdParam>,
     Query(query): Query<IdeaDetailQuery>,
 ) -> Result<Response, AppError> {
-    let sql = format!("{IDEAS_WITH_VOTE_COUNT} WHERE i.id = ? AND i.org_id = ? GROUP BY i.id");
+    let sql = r#"
+        SELECT
+            i.id,
+            i.org_id,
+            i.title,
+            i.description,
+            i.status,
+            i.created_at,
+            i.changelog_id,
+            COUNT(v.id) AS vote_count
+        FROM ideas i
+            LEFT JOIN votes v ON v.idea_id = i.id
+        WHERE i.id = ? AND i.org_id = ?
+        GROUP BY i.id
+    "#;
     let row: Option<IdeaRow> = sqlx::query_as(&sql)
         .bind(id.id)
         .bind(current_org.id)
@@ -247,14 +289,37 @@ async fn idea_detail(
     let comments = comments::comments_for_idea(&state, id.id).await?;
     let is_admin = admin::is_admin(&session, &state.db).await?;
 
+    let sql = r#"
+        SELECT
+            id,
+            org_id,
+            title,
+            description,
+            created_at
+        FROM changelogs
+        WHERE org_id = ?
+        ORDER BY title ASC;
+    "#;
+
+    let all_changelogs: Vec<Changelog> = sqlx::query_as(&sql)
+        .bind(current_org.id)
+        .fetch_all(&state.db)
+        .await?;
+
+    let comment_error = query.comment_error.is_some();
+    let all_statuses = IdeaStatus::ALL;
+    let is_logged_in = is_logged_in(&session).await?;
+    let org_slug = current_org.slug;
+
     Ok(HtmlTemplate(IdeaDetailTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        org_slug,
+        is_logged_in,
         item,
         comments,
         is_admin,
-        all_statuses: IdeaStatus::ALL,
-        comment_error: query.comment_error.is_some(),
+        all_statuses,
+        comment_error,
+        all_changelogs,
     })
     .into_response())
 }
@@ -268,6 +333,7 @@ struct VoteButtonTemplate {
 async fn vote(
     State(state): State<AppState>,
     session: Session,
+    current_org: CurrentOrg,
     Path(id): Path<IdParam>,
 ) -> Result<Response, AppError> {
     if session.id().is_none() {
@@ -308,9 +374,25 @@ async fn vote(
         true
     };
 
-    let sql = format!("{IDEAS_WITH_VOTE_COUNT} WHERE i.id = ? GROUP BY i.id");
+    let sql = r#"
+      SELECT
+            i.id,
+            i.org_id,
+            i.title,
+            i.description,
+            i.status,
+            i.created_at,
+            i.changelog_id,
+            COUNT(v.id) AS vote_count
+      FROM ideas i
+            LEFT JOIN votes v ON v.idea_id = i.id
+      WHERE i.id = ? and i.org_id = ?
+      GROUP BY i.id
+    "#;
+
     let row: Option<IdeaRow> = sqlx::query_as(&sql)
         .bind(id.id)
+        .bind(current_org.id)
         .fetch_optional(&state.db)
         .await?;
 
@@ -399,5 +481,5 @@ async fn create_idea(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(Redirect::to(&current_org.path(format!("/ideas/{id}"))).into_response())
+    Ok(current_org.redirect(format!("/ideas/{id}")).into_response())
 }

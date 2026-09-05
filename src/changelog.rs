@@ -9,7 +9,7 @@ use crate::{AppState, validation};
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
@@ -104,7 +104,9 @@ async fn create_changelog(
         .execute(&state.db)
         .await?;
 
-    Ok(Redirect::to(&current_org.path("/changelogs".to_string())).into_response())
+    Ok(current_org
+        .redirect("/changelogs".to_string())
+        .into_response())
 }
 #[derive(Template)]
 #[template(path = "changelog_list.html")]

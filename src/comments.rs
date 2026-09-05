@@ -6,7 +6,7 @@ use crate::validation::{
     self, AUTHOR_NAME_MAX, AUTHOR_NAME_MIN, COMMENT_BODY_MAX, COMMENT_BODY_MIN,
 };
 use axum::extract::{Path, State};
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Form, Router};
 use serde::Deserialize;
@@ -82,10 +82,9 @@ async fn create_comment(
         validation::validate_len(&body, "Comment", COMMENT_BODY_MIN, COMMENT_BODY_MAX).err();
 
     if author_error.is_some() || body_error.is_some() {
-        return Ok(
-            Redirect::to(&current_org.path(format!("/ideas/{}?comment_error=1", id.id)))
-                .into_response(),
-        );
+        return Ok(current_org
+            .redirect(format!("/ideas/{}?comment_error=1", id.id))
+            .into_response());
     }
 
     // Enforce 2-level threading: a reply's parent must belong to this idea and
@@ -115,5 +114,7 @@ async fn create_comment(
     .execute(&state.db)
     .await?;
 
-    Ok(Redirect::to(&current_org.path(format!("/ideas/{}", id.id))).into_response())
+    Ok(current_org
+        .redirect(format!("/ideas/{}", id.id))
+        .into_response())
 }
