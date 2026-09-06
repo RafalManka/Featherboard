@@ -235,6 +235,7 @@ struct IdeaDetailTemplate {
     is_admin: bool,
     all_statuses: [IdeaStatus; 5],
     all_changelogs: Vec<Changelog>,
+    all_ideas: Vec<Idea>,
 }
 
 #[derive(Deserialize)]
@@ -306,6 +307,27 @@ async fn idea_detail(
         .fetch_all(&state.db)
         .await?;
 
+
+    let sql = r#"
+        SELECT
+            id,
+            org_id,
+            title,
+            description,
+            status,
+            created_at,
+            changelog_id
+        FROM ideas
+        WHERE org_id = ? AND id != ?
+        ORDER BY title ASC;
+    "#;
+
+    let all_ideas: Vec<Idea> = sqlx::query_as(&sql)
+        .bind(current_org.id)
+        .bind(id.id)
+        .fetch_all(&state.db)
+        .await?;
+
     let comment_error = query.comment_error.is_some();
     let all_statuses = IdeaStatus::ALL;
     let is_logged_in = is_logged_in(&session).await?;
@@ -320,6 +342,7 @@ async fn idea_detail(
         all_statuses,
         comment_error,
         all_changelogs,
+        all_ideas,
     })
     .into_response())
 }
@@ -327,6 +350,7 @@ async fn idea_detail(
 #[derive(Template)]
 #[template(path = "partials/vote_button.html")]
 struct VoteButtonTemplate {
+    org_slug: String,
     item: IdeaListItem,
 }
 
@@ -407,7 +431,9 @@ async fn vote(
         voted,
     };
 
-    Ok(HtmlTemplate(VoteButtonTemplate { item }).into_response())
+    Ok(HtmlTemplate(VoteButtonTemplate {
+        org_slug: current_org.slug,
+        item }).into_response())
 }
 
 #[derive(Template)]

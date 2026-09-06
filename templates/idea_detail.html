@@ -33,6 +33,17 @@
             <button type="submit">Update status</button>
         </form>
 
+        <form class="status-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/merge">
+            <select name="canonical_idea_id">
+                {% for i in all_ideas %}
+                <option value="{{ i.id }}">{{
+                    i.title }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit">Merge ideas</button>
+        </form>
+
         <button hx-delete="/{{ org_slug }}/ideas/{{ item.idea.id }}" type="submit">Delete</button>
 
         {% else %}

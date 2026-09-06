@@ -1,4 +1,4 @@
-<button hx-post="/ideas/{{ item.idea.id }}/vote"
+<button hx-post="/{{ org_slug }}/ideas/{{ item.idea.id }}/vote"
         hx-target="this"
         hx-swap="outerHTML"
         hx-disabled-elt="this"
