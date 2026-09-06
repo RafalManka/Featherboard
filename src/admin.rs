@@ -17,6 +17,7 @@ pub fn idea_admin_router() -> Router<AppState> {
         .route("/{id}/status", post(update_status))
         .route("/{id}/changelog", post(assign_changelog))
         .route("/{id}", delete(delete_idea))
+        .route("/{id}/merge", post(merge_ideas))
 }
 
 pub async fn is_admin(session: &Session, db: &SqlitePool) -> Result<bool, AppError> {
@@ -130,4 +131,77 @@ async fn delete_idea(
         .await?;
 
     Ok((StatusCode::OK, current_org.hx_redirect(String::new())).into_response())
+}
+
+#[derive(Deserialize)]
+struct MergeIdeasForm {
+    canonical_idea_id: i64,
+}
+
+async fn merge_ideas(
+    State(state): State<AppState>,
+    Path(id_path): Path<IdParam>,
+    current_org: CurrentOrg,
+    session: Session,
+    Form(form): Form<MergeIdeasForm>,
+) -> Result<Response, AppError> {
+    if !is_admin(&session, &state.db).await? {
+        return Ok(StatusCode::FORBIDDEN.into_response());
+    }
+
+    let sql = r#"
+        SELECT COUNT(*)
+        FROM ideas
+        WHERE id IN (?, ?) AND org_id = ?
+    "#;
+
+    let count: i64 = sqlx::query_scalar(sql)
+        .bind(form.canonical_idea_id)
+        .bind(id_path.id)
+        .bind(current_org.id)
+        .fetch_one(&state.db)
+        .await?;
+
+    if count != 2 {
+        return Ok(StatusCode::BAD_REQUEST.into_response());
+    }
+
+    let sql = r#"
+        INSERT INTO votes (idea_id, voter_id)
+        SELECT ?, voter_id FROM votes WHERE idea_id = ?
+        ON CONFLICT (idea_id, voter_id) DO NOTHING
+    "#;
+
+    sqlx::query(sql)
+        .bind(form.canonical_idea_id)
+        .bind(id_path.id)
+        .execute(&state.db)
+        .await?;
+
+    let sql = r#"
+        UPDATE comments
+            SET idea_id = ?
+        WHERE idea_id = ?
+    "#;
+
+    sqlx::query(sql)
+        .bind(form.canonical_idea_id)
+        .bind(id_path.id)
+        .execute(&state.db)
+        .await?;
+
+    let sql = r#"
+        DELETE FROM ideas
+        WHERE id = ? AND org_id = ?
+    "#;
+
+    sqlx::query(sql)
+        .bind(id_path.id)
+        .bind(current_org.id)
+        .execute(&state.db)
+        .await?;
+
+    Ok(current_org
+        .redirect(format!("/ideas/{}", form.canonical_idea_id))
+        .into_response())
 }
