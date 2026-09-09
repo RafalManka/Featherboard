@@ -2,10 +2,9 @@ use crate::AppState;
 use crate::admin::{self, idea_admin_router};
 use crate::comments::{self, CommentWithReplies};
 use crate::error::AppError;
-use crate::login::is_logged_in;
 use crate::models::{Changelog, Idea, IdeaStatus};
 use crate::org::CurrentOrg;
-use crate::templates::HtmlTemplate;
+use crate::templates::{HtmlTemplate, Layout};
 use crate::validation::{self, DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use askama::Template;
 use axum::extract::{Path, Query, State};
@@ -76,8 +75,7 @@ async fn voted_idea_ids(state: &AppState, session: &Session) -> Result<HashSet<i
 #[derive(Template)]
 #[template(path = "idea_list.html")]
 pub struct IdeaListTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     ideas: Vec<IdeaListItem>,
     current_status: String,
     current_sort: String,
@@ -148,8 +146,7 @@ pub async fn list_ideas(
         .collect();
 
     Ok(HtmlTemplate(IdeaListTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         ideas,
         current_status: status_filter
             .map(IdeaStatus::as_str)
@@ -163,8 +160,7 @@ pub async fn list_ideas(
 #[derive(Template)]
 #[template(path = "roadmap.html")]
 pub struct RoadmapTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     groups: Vec<(IdeaStatus, Vec<IdeaListItem>)>,
 }
 
@@ -218,8 +214,7 @@ pub async fn roadmap(
     }
 
     Ok(HtmlTemplate(RoadmapTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         groups,
     }))
 }
@@ -227,8 +222,7 @@ pub async fn roadmap(
 #[derive(Template)]
 #[template(path = "idea_detail.html")]
 struct IdeaDetailTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     item: IdeaListItem,
     comments: Vec<CommentWithReplies>,
     comment_error: bool,
@@ -307,7 +301,6 @@ async fn idea_detail(
         .fetch_all(&state.db)
         .await?;
 
-
     let sql = r#"
         SELECT
             id,
@@ -330,12 +323,9 @@ async fn idea_detail(
 
     let comment_error = query.comment_error.is_some();
     let all_statuses = IdeaStatus::ALL;
-    let is_logged_in = is_logged_in(&session).await?;
-    let org_slug = current_org.slug;
 
     Ok(HtmlTemplate(IdeaDetailTemplate {
-        org_slug,
-        is_logged_in,
+        layout: Layout::load(&current_org, &session).await?,
         item,
         comments,
         is_admin,
@@ -350,7 +340,7 @@ async fn idea_detail(
 #[derive(Template)]
 #[template(path = "partials/vote_button.html")]
 struct VoteButtonTemplate {
-    org_slug: String,
+    layout: Layout,
     item: IdeaListItem,
 }
 
@@ -432,15 +422,16 @@ async fn vote(
     };
 
     Ok(HtmlTemplate(VoteButtonTemplate {
-        org_slug: current_org.slug,
-        item }).into_response())
+        layout: Layout::load(&current_org, &session).await?,
+        item,
+    })
+    .into_response())
 }
 
 #[derive(Template)]
 #[template(path = "idea_form.html")]
 struct IdeaFormTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     title: String,
     description: String,
     title_error: Option<String>,
@@ -449,8 +440,7 @@ struct IdeaFormTemplate {
 
 async fn new_idea_form(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
     Ok(HtmlTemplate(IdeaFormTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
@@ -487,8 +477,7 @@ async fn create_idea(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(IdeaFormTemplate {
-                org_slug: current_org.slug,
-                is_logged_in: is_logged_in(&session).await?,
+                layout: Layout::load(&current_org, &session).await?,
                 title,
                 description,
                 title_error,

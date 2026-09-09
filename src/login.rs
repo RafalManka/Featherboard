@@ -1,7 +1,7 @@
 use crate::AppState;
 use crate::error::AppError;
 use crate::org::CurrentOrg;
-use crate::templates::HtmlTemplate;
+use crate::templates::{HtmlTemplate, Layout};
 use askama::Template;
 use axum::Router;
 use axum::response::{IntoResponse, Response};
@@ -17,8 +17,7 @@ pub fn login_router() -> Router<AppState> {
 #[derive(Template)]
 #[template(path = "admin_login.html")]
 pub struct AdminLoginTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     github_enabled: bool,
 }
 
@@ -31,8 +30,7 @@ async fn login_form(session: Session, current_org: CurrentOrg) -> Result<Respons
         current_org.github_client_secret.is_some() && current_org.github_client_id.is_some();
 
     Ok(HtmlTemplate(AdminLoginTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         github_enabled,
     })
     .into_response())

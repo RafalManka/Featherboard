@@ -4,23 +4,23 @@
 
 {% block content %}
 <h1>Ideas</h1>
-<a class="submit-idea-cta" href="/{{ org_slug }}/ideas/new">
+<a class="submit-idea-cta" href="/{{ layout.org_slug }}/ideas/new">
     <span aria-hidden="true">+</span>
     <span>Submit an idea</span>
 </a>
 
 <div class="filter-bar">
     <nav class="filters">
-        <a href="/{{ org_slug }}/?sort={{ current_sort }}" {% if current_status== "" %} class="active"{% endif %}>All</a>
+        <a href="/{{ layout.org_slug }}/?sort={{ current_sort }}" {% if current_status== "" %} class="active"{% endif %}>All</a>
         {% for s in all_statuses %}
-        <a href="/{{ org_slug }}/?status={{ s.as_str() }}&sort={{ current_sort }}" {% if current_status== s.as_str() %} class="active" {%
+        <a href="/{{ layout.org_slug }}/?status={{ s.as_str() }}&sort={{ current_sort }}" {% if current_status== s.as_str() %} class="active" {%
            endif %}>{{ s.label() }}</a>
         {% endfor %}
     </nav>
     <nav class="sort">
-        <a href="/{{ org_slug }}/?sort=new{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "new"
+        <a href="/{{ layout.org_slug }}/?sort=new{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "new"
         %} class="active"{% endif %}>New</a>
-        <a href="/{{ org_slug }}/?sort=top{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "top"
+        <a href="/{{ layout.org_slug }}/?sort=top{% if current_status != "" %}&status={{ current_status }}{% endif %}"{% if current_sort == "top"
         %} class="active"{% endif %}>Top</a>
     </nav>
 </div>
@@ -30,7 +30,7 @@
     <li class="idea-card">
         {% include "partials/vote_button.html" %}
         <div class="idea-main">
-            <a class="idea-title" href="/{{ org_slug }}/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
+            <a class="idea-title" href="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
             <p class="idea-excerpt">{{ item.idea.excerpt() }}</p>
             <div class="idea-meta">
                 <span class="status-pill {{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>

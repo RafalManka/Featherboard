@@ -5,7 +5,7 @@
 
 {% block content %}
 <h1>Roadmap</h1>
-<p><a class="back-link" href="/{{ org_slug }}">&larr; Back to ideas</a></p>
+<p><a class="back-link" href="/{{ layout.org_slug }}">&larr; Back to ideas</a></p>
 
 <div class="roadmap">
     {% for (status, items) in groups %}
@@ -17,7 +17,7 @@
         <ul class="roadmap-cards">
             {% for item in items %}
             <li class="roadmap-card">
-                <a href="/{{ org_slug }}/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
+                <a href="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
                 <span class="roadmap-vote-count">{{ item.vote_count }} votes</span>
             </li>
             {% endfor %}

@@ -33,6 +33,8 @@ pub struct CurrentOrg {
     pub slug: String,
     pub github_client_secret: Option<String>,
     pub github_client_id: Option<String>,
+    pub accent_color: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 impl CurrentOrg {
@@ -58,7 +60,13 @@ impl FromRequestParts<AppState> for CurrentOrg {
         let slug: String = original_uri.path().split('/').skip(1).take(1).collect();
 
         let sql = r#"
-            SELECT id, slug, github_client_secret, github_client_id
+            SELECT
+                id,
+                slug,
+                github_client_secret,
+                github_client_id,
+                accent_color,
+                logo_url
             FROM organizations
             WHERE slug = ?
         "#;

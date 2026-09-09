@@ -1,9 +1,8 @@
 use crate::admin::is_admin;
 use crate::error::AppError;
-use crate::login::is_logged_in;
 use crate::models::Changelog;
 use crate::org::CurrentOrg;
-use crate::templates::HtmlTemplate;
+use crate::templates::{HtmlTemplate, Layout};
 use crate::validation::{DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
 use crate::{AppState, validation};
 use askama::Template;
@@ -33,8 +32,7 @@ async fn new_changelog_form(
     }
 
     Ok(HtmlTemplate(ChangelogFormTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
@@ -52,9 +50,8 @@ pub struct CreateChangelogForm {
 #[derive(Template)]
 #[template(path = "changelog_form.html")]
 struct ChangelogFormTemplate {
-    org_slug: String,
+    layout: Layout,
     title: String,
-    is_logged_in: bool,
     description: String,
     title_error: Option<String>,
     description_error: Option<String>,
@@ -86,8 +83,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
-                org_slug: current_org.slug,
-                is_logged_in: is_logged_in(&session).await?,
+                layout: Layout::load(&current_org, &session).await?,
                 title,
                 description,
                 title_error,
@@ -111,8 +107,7 @@ async fn create_changelog(
 #[derive(Template)]
 #[template(path = "changelog_list.html")]
 struct ChangelogListTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     is_admin: bool,
     changelogs: Vec<Changelog>,
 }
@@ -137,8 +132,7 @@ async fn list_changelogs(
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         is_admin,
         changelogs,
     })
@@ -148,8 +142,7 @@ async fn list_changelogs(
 #[derive(Template)]
 #[template(path = "changelog_detail.html")]
 struct ChangelogDetailTemplate {
-    org_slug: String,
-    is_logged_in: bool,
+    layout: Layout,
     changelog: Changelog,
 }
 
@@ -181,8 +174,7 @@ async fn changelog_detail(
     };
 
     Ok(HtmlTemplate(ChangelogDetailTemplate {
-        org_slug: current_org.slug,
-        is_logged_in: is_logged_in(&session).await?,
+        layout: Layout::load(&current_org, &session).await?,
         changelog,
     })
     .into_response())

@@ -3,14 +3,14 @@
 {% block title %}{{ item.idea.title }}{% endblock %}
 
 {% block content %}
-<p><a class="back-link" href="/{{ org_slug }}">&larr; Back to ideas</a></p>
+<p><a class="back-link" href="/{{ layout.org_slug }}">&larr; Back to ideas</a></p>
 
 <div class="idea-detail-card">
     {% include "partials/vote_button.html" %}
     <div class="idea-main">
         <h1>{{ item.idea.title }}</h1>
         {% if is_admin %}
-        <form class="status-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/status">
+        <form class="status-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/status">
             <select name="status">
                 {% for s in all_statuses %}
                 <option value="{{ s.as_str() }}" {% if s.as_str()== item.idea.status %}selected{% endif %}>{{ s.label()
@@ -21,7 +21,7 @@
             <button type="submit">Update status</button>
         </form>
 
-        <form class="status-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/changelog">
+        <form class="status-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/changelog">
             <select name="changelog_id">
                 <option value="" {% if item.idea.changelog_id.is_none() %}selected{% endif %}>None</option>
                 {% for c in all_changelogs %}
@@ -33,7 +33,7 @@
             <button type="submit">Update status</button>
         </form>
 
-        <form class="status-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/merge">
+        <form class="status-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/merge">
             <select name="canonical_idea_id">
                 {% for i in all_ideas %}
                 <option value="{{ i.id }}">{{
@@ -44,7 +44,7 @@
             <button type="submit">Merge ideas</button>
         </form>
 
-        <button hx-delete="/{{ org_slug }}/ideas/{{ item.idea.id }}" type="submit">Delete</button>
+        <button hx-delete="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}" type="submit">Delete</button>
 
         {% else %}
         <span class="status-pill {{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
@@ -68,7 +68,7 @@
     {% endfor %}
     <details>
         <summary>Reply</summary>
-        <form class="idea-form reply-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/comments">
+        <form class="idea-form reply-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
             <input type="hidden" name="parent_comment_id" value="{{ c.comment.id }}">
             <input type="text" name="author_name" placeholder="Your name">
             <textarea name="body" placeholder="Reply"></textarea>
@@ -79,7 +79,7 @@
 {% endfor %}
 
 <h3>Add a comment</h3>
-<form class="idea-form" method="post" action="/{{ org_slug }}/ideas/{{ item.idea.id }}/comments">
+<form class="idea-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
     <div>
         <label for="author_name">Name</label>
         <input type="text" id="author_name" name="author_name">
