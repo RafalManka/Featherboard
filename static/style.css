@@ -65,6 +65,12 @@ a {
     border-bottom: 1px solid var(--border);
 }
 
+.org-logo {
+    width: auto;
+    height: 25px;
+    object-fit: contain;
+}
+
 .main-nav a {
     color: var(--text);
     font-weight: 600;

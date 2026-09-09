@@ -6,20 +6,28 @@
     <title>{% block title %}Featherboard{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
+    {% if let Some(color) = layout.accent_color %}
+    <style>:root { --accent: {{ color }}; }</style>
+    {% endif %}
     <script src="/static/htmx.min.js" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}">
 <div class="nav-bar">
     <nav class="main-nav">
-        <a href="/{{ org_slug }}">Board</a>
-        <a href="/{{ org_slug }}/roadmap">Roadmap</a>
-        <a href="/{{ org_slug }}/changelogs">Changelog</a>
+        {% if let Some(logo) = layout.logo_url %}
+        <a href="/{{ layout.org_slug }}">
+            <img src="{{ logo }}" alt="logo" class="org-logo">
+        </a>
+        {% endif %}
+        <a href="/{{ layout.org_slug }}">Board</a>
+        <a href="/{{ layout.org_slug }}/roadmap">Roadmap</a>
+        <a href="/{{ layout.org_slug }}/changelogs">Changelog</a>
     </nav>
     <nav class="login-nav">
-        {% if is_logged_in %}
-        <a class="cta-outline" href="/{{ org_slug }}/logout"><span>Log out</span></a>
+        {% if layout.is_logged_in %}
+        <a class="cta-outline" href="/{{ layout.org_slug }}/logout"><span>Log out</span></a>
         {% else %}
-        <a class="cta-outline" href="/{{ org_slug }}/login"><span>Log in</span></a>
+        <a class="cta-outline" href="/{{ layout.org_slug }}/login"><span>Log in</span></a>
         {% endif %}
     </nav>
 </div>

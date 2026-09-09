@@ -6,7 +6,7 @@
 <h1>Changelogs</h1>
 
 {% if is_admin %}
-<a class="submit-idea-cta" href="/{{ org_slug }}/changelogs/new">
+<a class="submit-idea-cta" href="/{{ layout.org_slug }}/changelogs/new">
     <span aria-hidden="true">+</span>
     <span>Submit a changelog</span>
 </a>
@@ -16,7 +16,7 @@
     {% for item in changelogs %}
     <li class="idea-card">
         <div class="idea-main">
-            <a class="idea-title" href="/{{ org_slug }}/changelogs/{{ item.id }}">{{ item.title }}</a>
+            <a class="idea-title" href="/{{ layout.org_slug }}/changelogs/{{ item.id }}">{{ item.title }}</a>
             <p class="idea-excerpt">{{ item.excerpt() }}</p>
             <div class="idea-meta">
                 <time>{{ item.created_date() }}</time>
