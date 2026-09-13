@@ -59,7 +59,7 @@ async fn main() {
     let db = SqlitePoolOptions::new()
         .connect_with(options)
         .await
-        .unwrap();
+        .expect("failed to connect to database");
 
     sqlx::migrate!("./migrations")
         .run(&db)

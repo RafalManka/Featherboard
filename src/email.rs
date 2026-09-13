@@ -12,10 +12,11 @@ use std::env;
 
 #[derive(Clone)]
 pub struct EmailClient {
+    pub public_url: String,
     pub sender: String,
-    pub password: String,
-    pub smtp: String,
-    pub port: u16,
+    password: String,
+    smtp: String,
+    port: u16,
 }
 
 impl EmailClient {
@@ -32,11 +33,19 @@ impl EmailClient {
         let Some(port) = env::var("SMTP_PORT").ok() else {
             return None;
         };
+        let Some(public_url) = env::var("PUBLIC_URL")
+            .ok()
+            .map(|e| e.trim_end_matches('/').to_string())
+        else {
+            return None;
+        };
+
         let Some(port) = port.parse().ok() else {
             return None;
         };
 
         Some(EmailClient {
+            public_url,
             sender,
             password,
             smtp,
@@ -61,7 +70,7 @@ impl EmailClient {
 pub struct NewCommentEmail {
     pub idea_title: String,
     pub author_name: String,
-    pub body: String,
+    pub comment_body: String,
     pub idea_url: String,
 }
 pub async fn notify_comment_created(
@@ -86,7 +95,7 @@ pub async fn notify_comment_created(
         let message = Message::builder()
             .from(Mailbox::new(
                 Some(current_org.slug.clone()),
-                email_client.sender.parse().unwrap(),
+                email_client.sender.parse()?,
             ))
             .to(Mailbox::new(None, email.parse()?))
             .subject(format!("New comment on: {}", template.idea_title))

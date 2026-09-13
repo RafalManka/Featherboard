@@ -79,9 +79,9 @@ async fn create_comment(
     current_org: CurrentOrg,
     Form(form): Form<CreateCommentForm>,
 ) -> Result<Response, AppError> {
-    let sql = r"#
+    let sql = r#"
         SELECT EXISTS(SELECT 1 FROM ideas WHERE id = ? AND org_id = ?)
-    #";
+    "#;
 
     let is_valid_idea: bool = sqlx::query_scalar(sql)
         .bind(id_param.id)
@@ -135,17 +135,15 @@ async fn create_comment(
     .await?;
 
     if let Some(email_client) = state.email_client {
-        let body = form.body;
-
+        let comment_body = body;
         let author_id = session.get::<i64>("user_id").await?;
-
         let idea_title = get_idea_title(&state.db, &current_org, id_param.id).await?;
-        let author_name = match get_author_name(&state.db, &current_org, author_id).await? {
-            None => form.author_name,
-            Some(author_name) => author_name,
-        };
+        let author_name = get_author_name(&state.db, &current_org, author_id)
+            .await?
+            .unwrap_or_else(|| author_name);
 
         let idea_url = current_org.path(format!("/ideas/{}", id_param.id));
+        let idea_url = format!("{}{}", email_client.public_url, idea_url);
         notify_comment_created(
             &state.db,
             &current_org,
@@ -153,7 +151,7 @@ async fn create_comment(
             NewCommentEmail {
                 idea_title,
                 author_name,
-                body,
+                comment_body,
                 idea_url,
             },
         )
@@ -170,11 +168,11 @@ async fn get_idea_title(
     current_org: &CurrentOrg,
     idea_id: i64,
 ) -> Result<String, AppError> {
-    let sql = r"#
+    let sql = r#"
         SELECT title
         FROM ideas
         WHERE id = ? AND org_id = ?
-    #";
+    "#;
     let result: String = sqlx::query_scalar(sql)
         .bind(idea_id)
         .bind(current_org.id)
@@ -189,11 +187,11 @@ async fn get_author_name(
     author_id: Option<i64>,
 ) -> Result<Option<String>, AppError> {
     if let Some(author_id) = author_id {
-        let sql = r"#
-                SELECT name
-                FROM users
-                WHERE id = ? AND org_id = ?
-            #";
+        let sql = r#"
+            SELECT name
+            FROM users
+            WHERE id = ? AND org_id = ?
+        "#;
         let result: Option<String> = sqlx::query_scalar(sql)
             .bind(author_id)
             .bind(current_org.id)
