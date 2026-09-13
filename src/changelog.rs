@@ -48,7 +48,7 @@ pub struct CreateChangelogForm {
 }
 
 #[derive(Template)]
-#[template(path = "changelog_form.html")]
+#[template(path = "pages/changelog_form.html")]
 struct ChangelogFormTemplate {
     layout: Layout,
     title: String,
@@ -105,7 +105,7 @@ async fn create_changelog(
         .into_response())
 }
 #[derive(Template)]
-#[template(path = "changelog_list.html")]
+#[template(path = "pages/changelog_list.html")]
 struct ChangelogListTemplate {
     layout: Layout,
     is_admin: bool,
@@ -140,7 +140,7 @@ async fn list_changelogs(
 }
 
 #[derive(Template)]
-#[template(path = "changelog_detail.html")]
+#[template(path = "pages/changelog_detail.html")]
 struct ChangelogDetailTemplate {
     layout: Layout,
     changelog: Changelog,

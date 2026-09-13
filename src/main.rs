@@ -3,6 +3,7 @@ mod auth;
 mod auth_github;
 mod changelog;
 mod comments;
+mod email;
 mod error;
 mod ideas;
 mod login;
@@ -14,6 +15,7 @@ mod validation;
 
 use crate::auth::auth_router;
 use crate::changelog::changelog_router;
+use crate::email::EmailClient;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use crate::login::login_router;
 use axum::extract::State;
@@ -35,6 +37,7 @@ use tracing_subscriber::EnvFilter;
 #[derive(Clone)]
 struct AppState {
     db: SqlitePool,
+    email_client: Option<EmailClient>,
 }
 
 #[tokio::main]
@@ -72,6 +75,11 @@ async fn main() {
     let session_layer = SessionManagerLayer::new(session_store)
         .with_expiry(Expiry::OnInactivity(Duration::days(365)));
 
+    let email_client = EmailClient::load();
+    if email_client.is_none() {
+        tracing::warn!("SMTP not configured. Email notifications disabled");
+    }
+
     let app = Router::new()
         .route("/", get(list_ideas))
         .route("/roadmap", get(roadmap))
@@ -85,7 +93,7 @@ async fn main() {
         .nest("/{slug}", app)
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
-        .with_state(AppState { db })
+        .with_state(AppState { db, email_client })
         .layer(session_layer)
         .layer(
             TraceLayer::new_for_http()
@@ -114,7 +122,7 @@ async fn root_redirect(State(state): State<AppState>) -> Result<Response, AppErr
     let slug = sqlx::query_scalar::<_, String>(&sql)
         .fetch_optional(&state.db)
         .await?;
-    
+
     match slug {
         None => Ok((StatusCode::NOT_FOUND, "organization not found").into_response()),
         Some(slug) => Ok(Redirect::to(&format!("/{}", slug)).into_response()),

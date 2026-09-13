@@ -73,7 +73,7 @@ async fn voted_idea_ids(state: &AppState, session: &Session) -> Result<HashSet<i
 }
 
 #[derive(Template)]
-#[template(path = "idea_list.html")]
+#[template(path = "pages/idea_list.html")]
 pub struct IdeaListTemplate {
     layout: Layout,
     ideas: Vec<IdeaListItem>,
@@ -158,7 +158,7 @@ pub async fn list_ideas(
 }
 
 #[derive(Template)]
-#[template(path = "roadmap.html")]
+#[template(path = "pages/roadmap.html")]
 pub struct RoadmapTemplate {
     layout: Layout,
     groups: Vec<(IdeaStatus, Vec<IdeaListItem>)>,
@@ -220,7 +220,7 @@ pub async fn roadmap(
 }
 
 #[derive(Template)]
-#[template(path = "idea_detail.html")]
+#[template(path = "pages/idea_detail.html")]
 struct IdeaDetailTemplate {
     layout: Layout,
     item: IdeaListItem,
@@ -338,7 +338,7 @@ async fn idea_detail(
 }
 
 #[derive(Template)]
-#[template(path = "partials/vote_button.html")]
+#[template(path = "htmx/vote_button.html")]
 struct VoteButtonTemplate {
     layout: Layout,
     item: IdeaListItem,
@@ -429,7 +429,7 @@ async fn vote(
 }
 
 #[derive(Template)]
-#[template(path = "idea_form.html")]
+#[template(path = "pages/idea_form.html")]
 struct IdeaFormTemplate {
     layout: Layout,
     title: String,
