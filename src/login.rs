@@ -15,7 +15,7 @@ pub fn login_router() -> Router<AppState> {
 }
 
 #[derive(Template)]
-#[template(path = "admin_login.html")]
+#[template(path = "pages/admin_login.html")]
 pub struct AdminLoginTemplate {
     layout: Layout,
     github_enabled: bool,

@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::email::{NewCommentEmail, notify_comment_created};
 use crate::error::AppError;
 use crate::models::Comment;
 use crate::org::CurrentOrg;
@@ -6,11 +7,14 @@ use crate::validation::{
     self, AUTHOR_NAME_MAX, AUTHOR_NAME_MIN, COMMENT_BODY_MAX, COMMENT_BODY_MIN,
 };
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Form, Router};
 use serde::Deserialize;
+use sqlx::SqlitePool;
 use std::collections::HashMap;
+use tower_sessions::Session;
 
 pub fn comments_router() -> Router<AppState> {
     Router::new().route("/{id}/comments", post(create_comment))
@@ -67,12 +71,28 @@ pub struct CreateCommentForm {
 struct IdParam {
     id: i64,
 }
+
 async fn create_comment(
     State(state): State<AppState>,
-    Path(id): Path<IdParam>,
+    Path(id_param): Path<IdParam>,
+    session: Session,
     current_org: CurrentOrg,
     Form(form): Form<CreateCommentForm>,
 ) -> Result<Response, AppError> {
+    let sql = r"#
+        SELECT EXISTS(SELECT 1 FROM ideas WHERE id = ? AND org_id = ?)
+    #";
+
+    let is_valid_idea: bool = sqlx::query_scalar(sql)
+        .bind(id_param.id)
+        .bind(current_org.id)
+        .fetch_one(&state.db)
+        .await?;
+
+    if !is_valid_idea {
+        return Ok(StatusCode::FORBIDDEN.into_response());
+    }
+
     let author_name = form.author_name.trim().to_string();
     let body = form.body.trim().to_string();
 
@@ -83,7 +103,7 @@ async fn create_comment(
 
     if author_error.is_some() || body_error.is_some() {
         return Ok(current_org
-            .redirect(format!("/ideas/{}?comment_error=1", id.id))
+            .redirect(format!("/ideas/{}?comment_error=1", id_param.id))
             .into_response());
     }
 
@@ -95,10 +115,10 @@ async fn create_comment(
             let is_valid_parent: bool = sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM comments WHERE id = ? AND idea_id = ? AND parent_comment_id IS NULL)",
             )
-            .bind(parent_id)
-            .bind(id.id)
-            .fetch_one(&state.db)
-            .await?;
+                .bind(parent_id)
+                .bind(id_param.id)
+                .fetch_one(&state.db)
+                .await?;
             is_valid_parent.then_some(parent_id)
         }
         None => None,
@@ -107,14 +127,80 @@ async fn create_comment(
     sqlx::query(
         "INSERT INTO comments (idea_id, parent_comment_id, author_name, body) VALUES (?, ?, ?, ?)",
     )
-    .bind(id.id)
+    .bind(id_param.id)
     .bind(parent_comment_id)
     .bind(&author_name)
     .bind(&body)
     .execute(&state.db)
     .await?;
 
+    if let Some(email_client) = state.email_client {
+        let body = form.body;
+
+        let author_id = session.get::<i64>("user_id").await?;
+
+        let idea_title = get_idea_title(&state.db, &current_org, id_param.id).await?;
+        let author_name = match get_author_name(&state.db, &current_org, author_id).await? {
+            None => form.author_name,
+            Some(author_name) => author_name,
+        };
+
+        let idea_url = current_org.path(format!("/ideas/{}", id_param.id));
+        notify_comment_created(
+            &state.db,
+            &current_org,
+            &email_client,
+            NewCommentEmail {
+                idea_title,
+                author_name,
+                body,
+                idea_url,
+            },
+        )
+        .await?;
+    }
+
     Ok(current_org
-        .redirect(format!("/ideas/{}", id.id))
+        .redirect(format!("/ideas/{}", id_param.id))
         .into_response())
+}
+
+async fn get_idea_title(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    idea_id: i64,
+) -> Result<String, AppError> {
+    let sql = r"#
+        SELECT title
+        FROM ideas
+        WHERE id = ? AND org_id = ?
+    #";
+    let result: String = sqlx::query_scalar(sql)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .fetch_one(db)
+        .await?;
+    Ok(result)
+}
+
+async fn get_author_name(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    author_id: Option<i64>,
+) -> Result<Option<String>, AppError> {
+    if let Some(author_id) = author_id {
+        let sql = r"#
+                SELECT name
+                FROM users
+                WHERE id = ? AND org_id = ?
+            #";
+        let result: Option<String> = sqlx::query_scalar(sql)
+            .bind(author_id)
+            .bind(current_org.id)
+            .fetch_optional(db)
+            .await?;
+        return Ok(result);
+    }
+
+    Ok(None)
 }

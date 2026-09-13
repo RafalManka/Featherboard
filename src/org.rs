@@ -38,7 +38,7 @@ pub struct CurrentOrg {
 }
 
 impl CurrentOrg {
-    fn path(self, path: String) -> String {
+    pub fn path(&self, path: String) -> String {
         format!("/{}{}", self.slug, path)
     }
     pub fn redirect(self, p: String) -> Redirect {

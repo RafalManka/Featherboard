@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "pages/base.html" %}
 
 {% block title %}Ideas{% endblock %}
 
@@ -28,7 +28,7 @@
 <ul class="idea-list">
     {% for item in ideas %}
     <li class="idea-card">
-        {% include "partials/vote_button.html" %}
+        {% include "htmx/vote_button.html" %}
         <div class="idea-main">
             <a class="idea-title" href="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
             <p class="idea-excerpt">{{ item.idea.excerpt() }}</p>
