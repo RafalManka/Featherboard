@@ -70,7 +70,11 @@
         <summary>Reply</summary>
         <form class="idea-form reply-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
             <input type="hidden" name="parent_comment_id" value="{{ c.comment.id }}">
-            <input type="text" name="author_name" placeholder="Your name">
+            {% if let Some(author_name) = author_name %}
+                <input type="text" name="author_name" readonly tabindex="-1" value="{{ author_name }}">
+            {% else %}
+                <input type="text" name="author_name" placeholder="Your name">
+            {% endif %}
             <textarea name="body" placeholder="Reply"></textarea>
             <button type="submit">Reply</button>
         </form>
@@ -82,7 +86,11 @@
 <form class="idea-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
     <div>
         <label for="author_name">Name</label>
-        <input type="text" id="author_name" name="author_name">
+        {% if let Some(author_name) = author_name %}
+            <input type="text" name="author_name" readonly tabindex="-1" value="{{ author_name }}">
+        {% else %}
+            <input type="text" id="author_name" name="author_name">
+        {% endif %}
     </div>
     <div>
         <label for="body">Comment</label>

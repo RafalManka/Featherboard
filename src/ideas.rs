@@ -13,6 +13,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
+use sqlx::SqlitePool;
 use std::collections::HashSet;
 use tower_sessions::Session;
 
@@ -227,6 +228,7 @@ struct IdeaDetailTemplate {
     comments: Vec<CommentWithReplies>,
     comment_error: bool,
     is_admin: bool,
+    author_name: Option<String>,
     all_statuses: [IdeaStatus; 5],
     all_changelogs: Vec<Changelog>,
     all_ideas: Vec<Idea>,
@@ -324,17 +326,41 @@ async fn idea_detail(
     let comment_error = query.comment_error.is_some();
     let all_statuses = IdeaStatus::ALL;
 
+    let author_name = get_current_user_name(&state.db, &session).await?;
+
     Ok(HtmlTemplate(IdeaDetailTemplate {
         layout: Layout::load(&current_org, &session).await?,
         item,
         comments,
         is_admin,
+        author_name,
         all_statuses,
         comment_error,
         all_changelogs,
         all_ideas,
     })
     .into_response())
+}
+
+async fn get_current_user_name(
+    db: &SqlitePool,
+    session: &Session,
+) -> Result<Option<String>, AppError> {
+    if let Some(user_id) = session.get::<i64>("user_id").await? {
+        let sql = r#"
+            SELECT name
+            FROM users
+            WHERE id = ?
+        "#;
+        let result = sqlx::query_scalar(&sql)
+            .bind(user_id)
+            .fetch_optional(db)
+            .await?;
+
+        return Ok(result);
+    };
+
+    Ok(None)
 }
 
 #[derive(Template)]
