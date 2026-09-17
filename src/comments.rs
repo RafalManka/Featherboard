@@ -1,11 +1,11 @@
-use crate::AppState;
-use crate::email::{NewCommentEmail, notify_comment_created};
+use crate::email::{notify_comment_created, NewCommentEmail};
 use crate::error::AppError;
 use crate::models::Comment;
 use crate::org::CurrentOrg;
 use crate::validation::{
     self, AUTHOR_NAME_MAX, AUTHOR_NAME_MIN, COMMENT_BODY_MAX, COMMENT_BODY_MIN,
 };
+use crate::AppState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -32,13 +32,23 @@ pub async fn comments_for_idea(
     state: &AppState,
     idea_id: i64,
 ) -> Result<Vec<CommentWithReplies>, AppError> {
-    let all: Vec<Comment> = sqlx::query_as(
-        "SELECT id, idea_id, parent_comment_id, author_name, body, created_at \
-         FROM comments WHERE idea_id = ? ORDER BY created_at",
-    )
-    .bind(idea_id)
-    .fetch_all(&state.db)
-    .await?;
+    let sql = r#"
+        SELECT
+            id,
+            idea_id,
+            parent_comment_id,
+            user_id,
+            author_name,
+            body,
+            created_at
+        FROM comments
+        WHERE idea_id = ?
+        ORDER BY created_at
+    "#;
+    let all: Vec<Comment> = sqlx::query_as(sql)
+        .bind(idea_id)
+        .fetch_all(&state.db)
+        .await?;
 
     let mut replies_by_parent: HashMap<i64, Vec<Comment>> = HashMap::new();
     let mut top_level = Vec::new();
@@ -124,23 +134,25 @@ async fn create_comment(
         None => None,
     };
 
+    let author_id = session.get::<i64>("user_id").await?;
+    let author_name = get_author_name(&state.db, &current_org, author_id)
+        .await?
+        .unwrap_or_else(|| author_name);
+
     sqlx::query(
-        "INSERT INTO comments (idea_id, parent_comment_id, author_name, body) VALUES (?, ?, ?, ?)",
+        "INSERT INTO comments (idea_id, parent_comment_id, user_id, author_name, body) VALUES (?, ?, ?, ?, ?)",
     )
-    .bind(id_param.id)
-    .bind(parent_comment_id)
-    .bind(&author_name)
-    .bind(&body)
-    .execute(&state.db)
-    .await?;
+        .bind(id_param.id)
+        .bind(parent_comment_id)
+        .bind(&author_id)
+        .bind(&author_name)
+        .bind(&body)
+        .execute(&state.db)
+        .await?;
 
     if let Some(email_client) = state.email_client {
         let comment_body = body;
-        let author_id = session.get::<i64>("user_id").await?;
         let idea_title = get_idea_title(&state.db, &current_org, id_param.id).await?;
-        let author_name = get_author_name(&state.db, &current_org, author_id)
-            .await?
-            .unwrap_or_else(|| author_name);
 
         let idea_url = current_org.path(format!("/ideas/{}", id_param.id));
         let idea_url = format!("{}{}", email_client.public_url, idea_url);
@@ -155,7 +167,7 @@ async fn create_comment(
                 idea_url,
             },
         )
-        .await?;
+            .await?;
     }
 
     Ok(current_org

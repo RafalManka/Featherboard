@@ -131,6 +131,7 @@ pub struct Comment {
     pub id: i64,
     pub idea_id: i64,
     pub parent_comment_id: Option<i64>,
+    pub user_id: Option<i64>,
     pub author_name: String,
     pub body: String,
     pub created_at: String,
