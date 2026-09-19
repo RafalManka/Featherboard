@@ -107,3 +107,45 @@ pub async fn notify_comment_created(
 
     Ok(())
 }
+
+#[derive(Template)]
+#[template(path = "emails/status_changed.html")]
+pub struct StatusChangedEmail {
+    pub idea_title: String,
+    pub new_status: String,
+    pub idea_url: String,
+}
+pub async fn notify_status_changed(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    template: StatusChangedEmail,
+) -> Result<(), AppError> {
+    let sql = r#"
+           SELECT email
+           FROM users
+           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+        "#;
+
+    let emails: Vec<String> = sqlx::query_scalar(sql)
+        .bind(current_org.id)
+        .fetch_all(db)
+        .await
+        .unwrap_or(vec![]);
+
+    for email in emails {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(current_org.slug.clone()),
+                email_client.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, email.parse()?))
+            .subject(format!("Status changed to {}: {}", template.new_status, template.idea_title))
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = email_client.send_email(&message);
+    }
+
+    Ok(())
+}

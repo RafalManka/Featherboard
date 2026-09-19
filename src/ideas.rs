@@ -524,3 +524,21 @@ async fn create_idea(
 
     Ok(current_org.redirect(format!("/ideas/{id}")).into_response())
 }
+
+pub async fn get_idea_title(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    idea_id: i64,
+) -> Result<String, AppError> {
+    let sql = r#"
+        SELECT title
+        FROM ideas
+        WHERE id = ? AND org_id = ?
+    "#;
+    let result: String = sqlx::query_scalar(sql)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .fetch_one(db)
+        .await?;
+    Ok(result)
+}

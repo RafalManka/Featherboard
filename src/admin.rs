@@ -10,6 +10,8 @@ use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use tower_sessions::Session;
+use crate::email::{notify_status_changed, StatusChangedEmail};
+use crate::ideas::get_idea_title;
 
 /// Merged into the `/ideas` router by `ideas::ideas_router`.
 pub fn idea_admin_router() -> Router<AppState> {
@@ -62,11 +64,36 @@ async fn update_status(
     let Some(status) = IdeaStatus::parse(&form.status) else {
         return Ok(StatusCode::BAD_REQUEST.into_response());
     };
-    sqlx::query("UPDATE ideas SET status = ? WHERE id = ?")
+    let sql = r#"
+        UPDATE ideas
+        SET status = ?
+        WHERE id = ? AND org_id = ?
+    "#;
+    sqlx::query(sql)
         .bind(status.as_str())
         .bind(id_path.id)
+        .bind(current_org.id)
         .execute(&state.db)
         .await?;
+
+    if let Some(email_client) = state.email_client {
+        let idea_title = get_idea_title(&state.db, &current_org, id_path.id).await?;
+        let idea_url = current_org.path(format!("/ideas/{}", id_path.id));
+        let idea_url = format!("{}{}", email_client.public_url, idea_url);
+        let new_status = status.label().to_string();
+        notify_status_changed(
+            &state.db,
+            &current_org,
+            &email_client,
+            StatusChangedEmail {
+                idea_title,
+                new_status,
+                idea_url,
+            },
+        )
+            .await?;
+    }
+
     Ok(current_org
         .redirect(format!("/ideas/{}", id_path.id))
         .into_response())
