@@ -147,7 +147,7 @@ pub async fn list_ideas(
         .collect();
 
     Ok(HtmlTemplate(IdeaListTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         ideas,
         current_status: status_filter
             .map(IdeaStatus::as_str)
@@ -215,7 +215,7 @@ pub async fn roadmap(
     }
 
     Ok(HtmlTemplate(RoadmapTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         groups,
     }))
 }
@@ -284,7 +284,7 @@ async fn idea_detail(
         voted,
     };
     let comments = comments::comments_for_idea(&state, id.id).await?;
-    let is_admin = admin::is_admin(&session, &state.db).await?;
+    let is_admin = admin::is_admin(&session, &state.db, current_org.id).await?;
 
     let sql = r#"
         SELECT
@@ -329,7 +329,7 @@ async fn idea_detail(
     let author_name = get_current_user_name(&state.db, &session).await?;
 
     Ok(HtmlTemplate(IdeaDetailTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         item,
         comments,
         is_admin,
@@ -448,7 +448,7 @@ async fn vote(
     };
 
     Ok(HtmlTemplate(VoteButtonTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         item,
     })
     .into_response())
@@ -464,9 +464,13 @@ struct IdeaFormTemplate {
     description_error: Option<String>,
 }
 
-async fn new_idea_form(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
+async fn new_idea_form(
+    State(state): State<AppState>,
+    session: Session,
+    current_org: CurrentOrg,
+) -> Result<Response, AppError> {
     Ok(HtmlTemplate(IdeaFormTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
@@ -503,7 +507,7 @@ async fn create_idea(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(IdeaFormTemplate {
-                layout: Layout::load(&current_org, &session).await?,
+                layout: Layout::load(&state.db, &current_org, &session).await?,
                 title,
                 description,
                 title_error,

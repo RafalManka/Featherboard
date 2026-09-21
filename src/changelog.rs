@@ -28,12 +28,12 @@ async fn new_changelog_form(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db).await? {
+    if !is_admin(&session, &state.db, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
     Ok(HtmlTemplate(ChangelogFormTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         title: String::new(),
         description: String::new(),
         title_error: None,
@@ -64,7 +64,7 @@ async fn create_changelog(
     session: Session,
     Form(form): Form<CreateChangelogForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db).await? {
+    if !is_admin(&session, &state.db, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -84,7 +84,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
-                layout: Layout::load(&current_org, &session).await?,
+                layout: Layout::load(&state.db, &current_org, &session).await?,
                 title,
                 description,
                 title_error,
@@ -132,7 +132,7 @@ async fn list_changelogs(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
-    let is_admin = is_admin(&session, &state.db).await?;
+    let is_admin = is_admin(&session, &state.db, current_org.id).await?;
 
     let sql = r#"
         SELECT id, org_id, title, description, created_at
@@ -147,7 +147,7 @@ async fn list_changelogs(
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         is_admin,
         changelogs,
     })
@@ -189,7 +189,7 @@ async fn changelog_detail(
     };
 
     Ok(HtmlTemplate(ChangelogDetailTemplate {
-        layout: Layout::load(&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         changelog,
     })
     .into_response())
