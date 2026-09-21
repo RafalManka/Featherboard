@@ -182,7 +182,7 @@ pub async fn notify_changelog_created(
                 email_client.sender.parse()?,
             ))
             .to(Mailbox::new(None, email.parse()?))
-            .subject(format!("Status changed to {}: {}", template.new_status, template.idea_title))
+            .subject(format!("Changelog created: {}", template.changelog_title))
             .header(ContentType::TEXT_HTML)
             .body(template.render()?)?;
 

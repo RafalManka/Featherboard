@@ -1,5 +1,5 @@
 use crate::admin::is_admin;
-use crate::email::{StatusChangedEmail, notify_changelog_created, ChangelogCreatedEmail};
+use crate::email::{ChangelogCreatedEmail, notify_changelog_created};
 use crate::error::AppError;
 use crate::models::Changelog;
 use crate::org::CurrentOrg;
@@ -84,7 +84,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
-                layout: Layout::load(&state.db, &current_org, &session).await?,
+                layout: Layout::load(&state.db,&current_org, &session).await?,
                 title,
                 description,
                 title_error,
@@ -94,30 +94,37 @@ async fn create_changelog(
             .into_response());
     }
 
-    sqlx::query("INSERT INTO changelogs (org_id, title, description) VALUES (?, ?, ?)")
-        .bind(current_org.id)
-        .bind(&title)
-        .bind(&description)
-        .execute(&state.db)
-        .await?;
+    let id: i64 = sqlx::query_scalar(
+        "INSERT INTO changelogs (org_id, title, description) VALUES (?, ?, ?) RETURNING id",
+    )
+    .bind(current_org.id)
+    .bind(&title)
+    .bind(&description)
+    .fetch_one(&state.db)
+    .await?;
+
+    let path = format!("/changelogs/{}", id);
 
     if let Some(email_client) = state.email_client {
+        let changelog_title = title;
+        let changelog_body = description;
+        let changelog_url = current_org.path(path.clone());
+        let changelog_url = format!("{}{}", email_client.public_url, changelog_url);
 
         notify_changelog_created(
             &state.db,
             &current_org,
             &email_client,
             ChangelogCreatedEmail {
-                changelog_title: title,
-                changelog_body: "".to_string(),
-                changelog_url: "".to_string(),
+                changelog_title,
+                changelog_body,
+                changelog_url,
             },
-        );
+        )
+        .await?;
     }
 
-    Ok(current_org
-        .redirect("/changelogs".to_string())
-        .into_response())
+    Ok(current_org.redirect(path).into_response())
 }
 #[derive(Template)]
 #[template(path = "pages/changelog_list.html")]
@@ -147,7 +154,7 @@ async fn list_changelogs(
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
-        layout: Layout::load(&state.db, &current_org, &session).await?,
+        layout: Layout::load(&state.db,&current_org, &session).await?,
         is_admin,
         changelogs,
     })
@@ -189,7 +196,7 @@ async fn changelog_detail(
     };
 
     Ok(HtmlTemplate(ChangelogDetailTemplate {
-        layout: Layout::load(&state.db, &current_org, &session).await?,
+        layout: Layout::load(&state.db,&current_org, &session).await?,
         changelog,
     })
     .into_response())
