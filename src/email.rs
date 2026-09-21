@@ -149,3 +149,45 @@ pub async fn notify_status_changed(
 
     Ok(())
 }
+
+#[derive(Template)]
+#[template(path = "emails/changelog_created.html")]
+pub struct ChangelogCreatedEmail {
+    pub changelog_title: String,
+    pub changelog_body: String,
+    pub changelog_url: String,
+}
+pub async fn notify_changelog_created(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    template: ChangelogCreatedEmail,
+) -> Result<(), AppError> {
+    let sql = r#"
+           SELECT email
+           FROM users
+           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+        "#;
+
+    let emails: Vec<String> = sqlx::query_scalar(sql)
+        .bind(current_org.id)
+        .fetch_all(db)
+        .await
+        .unwrap_or(vec![]);
+
+    for email in emails {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(current_org.slug.clone()),
+                email_client.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, email.parse()?))
+            .subject(format!("Status changed to {}: {}", template.new_status, template.idea_title))
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = email_client.send_email(&message);
+    }
+
+    Ok(())
+}

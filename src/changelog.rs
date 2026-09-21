@@ -1,4 +1,5 @@
 use crate::admin::is_admin;
+use crate::email::{StatusChangedEmail, notify_changelog_created, ChangelogCreatedEmail};
 use crate::error::AppError;
 use crate::models::Changelog;
 use crate::org::CurrentOrg;
@@ -99,6 +100,20 @@ async fn create_changelog(
         .bind(&description)
         .execute(&state.db)
         .await?;
+
+    if let Some(email_client) = state.email_client {
+
+        notify_changelog_created(
+            &state.db,
+            &current_org,
+            &email_client,
+            ChangelogCreatedEmail {
+                changelog_title: title,
+                changelog_body: "".to_string(),
+                changelog_url: "".to_string(),
+            },
+        );
+    }
 
     Ok(current_org
         .redirect("/changelogs".to_string())
