@@ -4,6 +4,7 @@ use crate::org::CurrentOrg;
 use askama::Template;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
+use sqlx::SqlitePool;
 use tower_sessions::Session;
 
 pub struct HtmlTemplate<T>(pub T);
@@ -28,10 +29,16 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub async fn load(current_org: &CurrentOrg, session: &Session) -> Result<Layout, AppError> {
+    pub async fn load(
+        db: &SqlitePool,
+        current_org: &CurrentOrg,
+        session: &Session,
+    ) -> Result<Layout, AppError> {
+        let is_logged_in = is_logged_in(db, session, current_org.id).await?;
+        
         Ok(Self {
             org_slug: current_org.slug.clone(),
-            is_logged_in: is_logged_in(session).await?,
+            is_logged_in,
             accent_color: current_org.accent_color.clone(),
             logo_url: current_org.logo_url.clone(),
         })

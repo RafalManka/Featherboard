@@ -1,5 +1,7 @@
 use crate::AppState;
+use crate::email::{StatusChangedEmail, notify_status_changed};
 use crate::error::AppError;
+use crate::ideas::get_idea_title;
 use crate::models::IdeaStatus;
 use crate::org::CurrentOrg;
 use axum::extract::{Path, State};
@@ -20,7 +22,7 @@ pub fn idea_admin_router() -> Router<AppState> {
         .route("/{id}/merge", post(merge_ideas))
 }
 
-pub async fn is_admin(session: &Session, db: &SqlitePool) -> Result<bool, AppError> {
+pub async fn is_admin(session: &Session, db: &SqlitePool, org_id: i64) -> Result<bool, AppError> {
     let Some(user_id) = session.get::<i64>("user_id").await? else {
         return Ok(false);
     };
@@ -28,11 +30,12 @@ pub async fn is_admin(session: &Session, db: &SqlitePool) -> Result<bool, AppErr
     let sql = r#"
         SELECT is_admin
         FROM users
-        WHERE id = ?
+        WHERE id = ? AND org_id = ?
     "#;
 
     let is_admin = sqlx::query_scalar(sql)
         .bind(user_id)
+        .bind(org_id)
         .fetch_optional(db)
         .await?
         .unwrap_or(false);
@@ -56,17 +59,42 @@ async fn update_status(
     Path(id_path): Path<IdParam>,
     Form(form): Form<UpdateStatusForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db).await? {
+    if !is_admin(&session, &state.db, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
     let Some(status) = IdeaStatus::parse(&form.status) else {
         return Ok(StatusCode::BAD_REQUEST.into_response());
     };
-    sqlx::query("UPDATE ideas SET status = ? WHERE id = ?")
+    let sql = r#"
+        UPDATE ideas
+        SET status = ?
+        WHERE id = ? AND org_id = ?
+    "#;
+    sqlx::query(sql)
         .bind(status.as_str())
         .bind(id_path.id)
+        .bind(current_org.id)
         .execute(&state.db)
         .await?;
+
+    if let Some(email_client) = state.email_client {
+        let idea_title = get_idea_title(&state.db, &current_org, id_path.id).await?;
+        let idea_url = current_org.path(format!("/ideas/{}", id_path.id));
+        let idea_url = format!("{}{}", email_client.public_url, idea_url);
+        let new_status = status.label().to_string();
+        notify_status_changed(
+            &state.db,
+            &current_org,
+            &email_client,
+            StatusChangedEmail {
+                idea_title,
+                new_status,
+                idea_url,
+            },
+        )
+        .await?;
+    }
+
     Ok(current_org
         .redirect(format!("/ideas/{}", id_path.id))
         .into_response())
@@ -84,7 +112,7 @@ async fn assign_changelog(
     session: Session,
     Form(form): Form<AssignChangelogForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db).await? {
+    if !is_admin(&session, &state.db, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -121,7 +149,7 @@ async fn delete_idea(
     session: Session,
     Path(id_path): Path<IdParam>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db).await? {
+    if !is_admin(&session, &state.db, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
     sqlx::query("DELETE FROM ideas WHERE id = ? AND org_id = ?")
@@ -145,7 +173,7 @@ async fn merge_ideas(
     session: Session,
     Form(form): Form<MergeIdeasForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db).await? {
+    if !is_admin(&session, &state.db, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 

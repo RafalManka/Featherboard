@@ -15,6 +15,7 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tower_sessions::Session;
+use crate::ideas::get_idea_title;
 
 pub fn comments_router() -> Router<AppState> {
     Router::new().route("/{id}/comments", post(create_comment))
@@ -173,24 +174,6 @@ async fn create_comment(
     Ok(current_org
         .redirect(format!("/ideas/{}", id_param.id))
         .into_response())
-}
-
-async fn get_idea_title(
-    db: &SqlitePool,
-    current_org: &CurrentOrg,
-    idea_id: i64,
-) -> Result<String, AppError> {
-    let sql = r#"
-        SELECT title
-        FROM ideas
-        WHERE id = ? AND org_id = ?
-    "#;
-    let result: String = sqlx::query_scalar(sql)
-        .bind(idea_id)
-        .bind(current_org.id)
-        .fetch_one(db)
-        .await?;
-    Ok(result)
 }
 
 async fn get_author_name(
