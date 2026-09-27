@@ -13,6 +13,7 @@ mod static_assets;
 mod templates;
 mod validation;
 mod subscription;
+mod webhooks;
 
 use crate::auth::auth_router;
 use crate::changelog::changelog_router;
@@ -35,6 +36,7 @@ use tower_sessions_sqlx_store::SqliteStore;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 use crate::subscription::subscriptions_router;
+use crate::webhooks::webhooks_router;
 
 #[derive(Clone)]
 struct AppState {
@@ -94,6 +96,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root_redirect))
         .nest("/{slug}", app)
+        .nest("/webhooks", webhooks_router())
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
         .with_state(AppState { db, email_client })
