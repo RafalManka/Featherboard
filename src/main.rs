@@ -12,6 +12,7 @@ mod org;
 mod static_assets;
 mod templates;
 mod validation;
+mod subscription;
 
 use crate::auth::auth_router;
 use crate::changelog::changelog_router;
@@ -33,6 +34,7 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
+use crate::subscription::subscriptions_router;
 
 #[derive(Clone)]
 struct AppState {
@@ -86,6 +88,7 @@ async fn main() {
         .nest("/ideas", ideas_router())
         .nest("/changelogs", changelog_router())
         .nest("/auth", auth_router())
+        .nest("/subscriptions", subscriptions_router())
         .merge(login_router());
 
     let app = Router::new()

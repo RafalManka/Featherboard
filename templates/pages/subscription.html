@@ -1,0 +1,22 @@
+{% extends "pages/base.html" %}
+
+{% block title %}Subscription{% endblock %}
+
+{% block content %}
+<p><a class="back-link" href="/{{ layout.org_slug }}/">&larr; Back to ideas</a></p>
+
+<div class="idea-detail-card">
+    <div class="idea-main">
+        <h1>Subscription</h1>
+        {% if let Some(subscription) = subscription %}
+            <p class="idea-description">{{ subscription.status }}</p>
+            <div class="idea-meta">
+                <time>{{ subscription.created_date() }}</time>
+            </div>
+        {% else %}
+            <p>No subscription yet</p>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

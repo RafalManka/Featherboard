@@ -74,6 +74,60 @@ pub enum IdeaStatus {
     Declined,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum SubscriptionStatus {
+    Incomplete,
+    IncompleteExpired,
+    Trialing,
+    Active,
+    PastDue,
+    Canceled,
+    Unpaid,
+    Paused,
+}
+
+#[allow(dead_code)]
+impl SubscriptionStatus {
+    pub const ALL: [SubscriptionStatus; 8] = [
+        Self::Incomplete,
+        Self::IncompleteExpired,
+        Self::Trialing,
+        Self::Active,
+        Self::PastDue,
+        Self::Canceled,
+        Self::Unpaid,
+        Self::Paused,
+    ];
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "incomplete" => Some(Self::Incomplete),
+            "incomplete_expired" => Some(Self::IncompleteExpired),
+            "trialing" => Some(Self::Trialing),
+            "active" => Some(Self::Active),
+            "past_due" => Some(Self::PastDue),
+            "canceled" => Some(Self::Canceled),
+            "unpaid" => Some(Self::Unpaid),
+            "paused" => Some(Self::Paused),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Incomplete => "incomplete",
+            Self::IncompleteExpired => "incomplete_expired",
+            Self::Trialing => "trialing",
+            Self::Active => "active",
+            Self::PastDue => "past_due",
+            Self::Canceled => "canceled",
+            Self::Unpaid => "unpaid",
+            Self::Paused => "paused",
+        }
+    }
+}
+
 impl IdeaStatus {
     pub const ALL: [IdeaStatus; 5] = [
         Self::Open,
