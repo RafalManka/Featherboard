@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::admin::is_admin;
 use crate::error::AppError;
+use crate::models::SubscriptionStatus;
 use crate::org::CurrentOrg;
 use crate::templates::{HtmlTemplate, Layout};
 use askama::Template;
@@ -72,4 +73,45 @@ async fn find_by_org_id(db: &SqlitePool, org_id: i64) -> Result<Option<Subscript
         .await?;
 
     Ok(subscription)
+}
+
+pub async fn upsert_from_stripe(
+    db: &SqlitePool,
+    org_id: i64,
+    customer_id: &str,
+    subscription_id: &str,
+    status: SubscriptionStatus,
+) -> Result<Subscription, AppError> {
+    let sql = r#"
+        INSERT INTO subscriptions (
+            org_id,
+            stripe_customer_id,
+            stripe_subscription_id,
+            status
+        )
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT (org_id) DO UPDATE SET
+            stripe_customer_id = excluded.stripe_customer_id,
+            stripe_subscription_id = excluded.stripe_subscription_id,
+            status = excluded.status,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        RETURNING
+            id,
+            org_id,
+            stripe_customer_id,
+            stripe_subscription_id,
+            status,
+            created_at,
+            updated_at
+    "#;
+
+    let result = sqlx::query_as::<_, Subscription>(sql)
+        .bind(org_id)
+        .bind(customer_id)
+        .bind(subscription_id)
+        .bind(status.as_str())
+        .fetch_one(db)
+        .await?;
+
+    Ok(result)
 }
