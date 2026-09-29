@@ -10,9 +10,9 @@ mod login;
 mod models;
 mod org;
 mod static_assets;
+mod subscription;
 mod templates;
 mod validation;
-mod subscription;
 mod webhooks;
 
 use crate::auth::auth_router;
@@ -20,6 +20,8 @@ use crate::changelog::changelog_router;
 use crate::email::EmailClient;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use crate::login::login_router;
+use crate::subscription::subscriptions_router;
+use crate::webhooks::webhooks_router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
@@ -27,6 +29,7 @@ use axum::{Router, routing::get};
 use error::AppError;
 use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use std::env;
 use std::io::IsTerminal;
 use std::str::FromStr;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
@@ -35,11 +38,10 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
-use crate::subscription::subscriptions_router;
-use crate::webhooks::webhooks_router;
 
 #[derive(Clone)]
 struct AppState {
+    public_url: Option<String>,
     db: SqlitePool,
     email_client: Option<EmailClient>,
 }
@@ -83,6 +85,9 @@ async fn main() {
     if email_client.is_none() {
         tracing::warn!("SMTP not configured. Email notifications disabled");
     }
+    let public_url = env::var("PUBLIC_URL")
+        .ok()
+        .map(|e| e.trim_end_matches('/').to_string());
 
     let app = Router::new()
         .route("/", get(list_ideas))
@@ -99,7 +104,11 @@ async fn main() {
         .nest("/webhooks", webhooks_router())
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
-        .with_state(AppState { db, email_client })
+        .with_state(AppState {
+            public_url,
+            db,
+            email_client,
+        })
         .layer(session_layer)
         .layer(
             TraceLayer::new_for_http()

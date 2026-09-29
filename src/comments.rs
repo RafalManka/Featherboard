@@ -1,11 +1,12 @@
-use crate::email::{notify_comment_created, NewCommentEmail};
+use crate::AppState;
+use crate::email::{NewCommentEmail, notify_comment_created};
 use crate::error::AppError;
+use crate::ideas::get_idea_title;
 use crate::models::Comment;
 use crate::org::CurrentOrg;
 use crate::validation::{
     self, AUTHOR_NAME_MAX, AUTHOR_NAME_MIN, COMMENT_BODY_MAX, COMMENT_BODY_MIN,
 };
-use crate::AppState;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -15,7 +16,6 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tower_sessions::Session;
-use crate::ideas::get_idea_title;
 
 pub fn comments_router() -> Router<AppState> {
     Router::new().route("/{id}/comments", post(create_comment))
@@ -151,12 +151,12 @@ async fn create_comment(
         .execute(&state.db)
         .await?;
 
-    if let Some(email_client) = state.email_client {
+    if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
         let comment_body = body;
         let idea_title = get_idea_title(&state.db, &current_org, id_param.id).await?;
 
         let idea_url = current_org.path(format!("/ideas/{}", id_param.id));
-        let idea_url = format!("{}{}", email_client.public_url, idea_url);
+        let idea_url = format!("{}{}", public_url, idea_url);
         notify_comment_created(
             &state.db,
             &current_org,
@@ -168,7 +168,7 @@ async fn create_comment(
                 idea_url,
             },
         )
-            .await?;
+        .await?;
     }
 
     Ok(current_org

@@ -84,7 +84,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
-                layout: Layout::load(&state.db,&current_org, &session).await?,
+                layout: Layout::load(&state.db, &current_org, &session).await?,
                 title,
                 description,
                 title_error,
@@ -105,11 +105,11 @@ async fn create_changelog(
 
     let path = format!("/changelogs/{}", id);
 
-    if let Some(email_client) = state.email_client {
+    if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
         let changelog_title = title;
         let changelog_body = description;
         let changelog_url = current_org.path(path.clone());
-        let changelog_url = format!("{}{}", email_client.public_url, changelog_url);
+        let changelog_url = format!("{}{}", public_url, changelog_url);
 
         notify_changelog_created(
             &state.db,
@@ -154,7 +154,7 @@ async fn list_changelogs(
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
-        layout: Layout::load(&state.db,&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         is_admin,
         changelogs,
     })
@@ -196,7 +196,7 @@ async fn changelog_detail(
     };
 
     Ok(HtmlTemplate(ChangelogDetailTemplate {
-        layout: Layout::load(&state.db,&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         changelog,
     })
     .into_response())

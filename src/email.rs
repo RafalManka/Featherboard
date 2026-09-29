@@ -12,7 +12,6 @@ use std::env;
 
 #[derive(Clone)]
 pub struct EmailClient {
-    pub public_url: String,
     pub sender: String,
     password: String,
     smtp: String,
@@ -33,19 +32,12 @@ impl EmailClient {
         let Some(port) = env::var("SMTP_PORT").ok() else {
             return None;
         };
-        let Some(public_url) = env::var("PUBLIC_URL")
-            .ok()
-            .map(|e| e.trim_end_matches('/').to_string())
-        else {
-            return None;
-        };
 
         let Some(port) = port.parse().ok() else {
             return None;
         };
 
         Some(EmailClient {
-            public_url,
             sender,
             password,
             smtp,
@@ -140,7 +132,10 @@ pub async fn notify_status_changed(
                 email_client.sender.parse()?,
             ))
             .to(Mailbox::new(None, email.parse()?))
-            .subject(format!("Status changed to {}: {}", template.new_status, template.idea_title))
+            .subject(format!(
+                "Status changed to {}: {}",
+                template.new_status, template.idea_title
+            ))
             .header(ContentType::TEXT_HTML)
             .body(template.render()?)?;
 
