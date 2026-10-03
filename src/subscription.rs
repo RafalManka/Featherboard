@@ -35,8 +35,6 @@ async fn stripe_checkout(
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
-    // 1. Read STRIPE_SECRET_KEY and STRIPE_PRICE_ID from the environment.
-    // 2. Return 500 if either is missing.
     let secret_key = match env::var("STRIPE_SECRET_KEY") {
         Ok(secret) => secret,
         Err(_) => return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response()),
@@ -67,7 +65,10 @@ async fn stripe_checkout(
         ("line_items[0][price]", price_id),
         ("line_items[0][quantity]", "1".to_owned()),
         ("mode", "subscription".to_owned()),
-        ("metadata[featherboard_org_id]", current_org.id.to_string()),
+        (
+            "subscription_data[metadata][featherboard_org_id]",
+            current_org.id.to_string(),
+        ),
     ];
 
     let client = reqwest::Client::new();
@@ -187,4 +188,90 @@ pub async fn upsert_from_stripe(
         .await?;
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    struct TestData {
+        org_id: i64,
+        customer_id: &'static str,
+        subscription_id: &'static str,
+        status: SubscriptionStatus,
+    }
+
+    static TEST_DATA: &[TestData] = &[
+        TestData {
+            org_id: 1,
+            customer_id: "2",
+            subscription_id: "3",
+            status: SubscriptionStatus::Active,
+        },
+        TestData {
+            org_id: 2,
+            customer_id: "5",
+            subscription_id: "6",
+            status: SubscriptionStatus::Canceled,
+        },
+        TestData {
+            org_id: 1,
+            customer_id: "8",
+            subscription_id: "9",
+            status: SubscriptionStatus::Unpaid,
+        },
+        TestData {
+            org_id: 1,
+            customer_id: "2",
+            subscription_id: "9",
+            status: SubscriptionStatus::Canceled,
+        },
+    ];
+
+    #[tokio::test]
+    async fn upserts_from_stripe() {
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            r#"
+              CREATE TABLE subscriptions (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  org_id INTEGER NOT NULL UNIQUE,
+                  stripe_customer_id TEXT NOT NULL UNIQUE,
+                  stripe_subscription_id TEXT NOT NULL UNIQUE,
+                  status TEXT NOT NULL,
+                  created_at TEXT NOT NULL DEFAULT 'now',
+                  updated_at TEXT NOT NULL DEFAULT 'now'
+              )
+              "#,
+        )
+        .execute(&db)
+        .await
+        .expect("Failed to create table");
+
+        for test_case in TEST_DATA {
+            let subscription = upsert_from_stripe(
+                &db,
+                test_case.org_id,
+                test_case.customer_id,
+                test_case.subscription_id,
+                test_case.status,
+            )
+            .await
+            .expect("Error upserting customer");
+
+            assert_eq!(subscription.org_id, test_case.org_id);
+            assert_eq!(subscription.stripe_customer_id, test_case.customer_id);
+            assert_eq!(
+                subscription.stripe_subscription_id,
+                test_case.subscription_id
+            );
+            assert_eq!(subscription.status, test_case.status.as_str());
+        }
+    }
 }

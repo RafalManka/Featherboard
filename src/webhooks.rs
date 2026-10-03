@@ -67,10 +67,12 @@ async fn stripe_webhook(
     let Ok(event) = serde_json::from_slice::<StripeEvent>(&body) else {
         return Ok((StatusCode::BAD_REQUEST, "invalid JSON").into_response());
     };
-
-    if event.event_type != "customer.subscription.created" {
-        return Ok(StatusCode::OK.into_response());
-    }
+    let event_type = match event.event_type.as_str() {
+        "customer.subscription.created" => "created",
+        "customer.subscription.deleted" => "deleted",
+        "customer.subscription.updated" => "updated",
+        _ => return Ok(StatusCode::OK.into_response()),
+    };
 
     let Ok(event) = serde_json::from_slice::<StripeSubscriptionEvent>(&body) else {
         return Ok((StatusCode::BAD_REQUEST, "invalid subscription event").into_response());
@@ -102,7 +104,8 @@ async fn stripe_webhook(
         subscription_id = %event.data.object.id,
         customer_id = %event.data.object.customer,
         status = %status.as_str(),
-        "received subscription.created event"
+        prefix = "received event",
+        event = %event_type
     );
 
     Ok(StatusCode::OK.into_response())
