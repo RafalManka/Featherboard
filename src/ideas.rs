@@ -284,7 +284,7 @@ async fn idea_detail(
         voted,
     };
     let comments = comments::comments_for_idea(&state, id.id).await?;
-    let is_admin = admin::is_admin(&session, &state.db, current_org.id).await?;
+    let is_admin = admin::is_admin(&state.db, &session, current_org.id).await?;
 
     let sql = r#"
         SELECT

@@ -1,3 +1,4 @@
+use crate::admin::is_admin;
 use crate::error::AppError;
 use crate::login::is_logged_in;
 use crate::org::CurrentOrg;
@@ -24,6 +25,7 @@ impl<T: Template> IntoResponse for HtmlTemplate<T> {
 pub struct Layout {
     pub org_slug: String,
     pub is_logged_in: bool,
+    pub is_admin: bool,
     pub accent_color: Option<String>,
     pub logo_url: Option<String>,
 }
@@ -35,10 +37,12 @@ impl Layout {
         session: &Session,
     ) -> Result<Layout, AppError> {
         let is_logged_in = is_logged_in(db, session, current_org.id).await?;
-        
+        let is_admin = is_admin(db, session, current_org.id).await?;
+
         Ok(Self {
             org_slug: current_org.slug.clone(),
             is_logged_in,
+            is_admin,
             accent_color: current_org.accent_color.clone(),
             logo_url: current_org.logo_url.clone(),
         })

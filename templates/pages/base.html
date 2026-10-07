@@ -26,6 +26,9 @@
     <nav class="login-nav">
         {% if layout.is_logged_in %}
         <a class="cta-outline" href="/{{ layout.org_slug }}/logout"><span>Log out</span></a>
+            {% if layout.is_admin %}
+            <a class="cta-outline" href="/{{ layout.org_slug }}/subscriptions"><span>Subscriptions</span></a>
+            {% endif %}
         {% else %}
         <a class="cta-outline" href="/{{ layout.org_slug }}/login"><span>Log in</span></a>
         {% endif %}

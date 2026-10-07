@@ -13,8 +13,12 @@
             <div class="idea-meta">
                 <time>{{ subscription.created_date() }}</time>
             </div>
+        {% else if subscription_enabled %}
+            <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                <button type="submit">Subscribe</button>
+            </form>
         {% else %}
-            <p>No subscription yet</p>
+            <p>Billing is not configured for this instance.</p>
         {% endif %}
 
     </div>

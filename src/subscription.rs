@@ -31,17 +31,12 @@ async fn stripe_checkout(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
-    let secret_key = match env::var("STRIPE_SECRET_KEY") {
-        Ok(secret) => secret,
-        Err(_) => return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response()),
-    };
-    let price_id = match env::var("STRIPE_PRICE_ID") {
-        Ok(secret) => secret,
-        Err(_) => return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response()),
+    let Some((secret_key, price_id)) = stripe_config() else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
     let Some(public_url) = state.public_url else {
@@ -91,6 +86,18 @@ async fn stripe_checkout(
     Ok(Redirect::to(checkout_url.as_str()).into_response())
 }
 
+fn stripe_config() -> Option<(String, String)> {
+    let secret_key = match env::var("STRIPE_SECRET_KEY") {
+        Ok(secret) => secret,
+        Err(_) => return None,
+    };
+    let price_id = match env::var("STRIPE_PRICE_ID") {
+        Ok(secret) => secret,
+        Err(_) => return None,
+    };
+    Some((secret_key, price_id))
+}
+
 #[derive(sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Subscription {
@@ -114,6 +121,7 @@ impl Subscription {
 struct SubscriptionTemplate {
     layout: Layout,
     subscription: Option<Subscription>,
+    subscription_enabled: bool,
 }
 
 async fn get_current_subscription(
@@ -121,15 +129,17 @@ async fn get_current_subscription(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
     let subscription = find_by_org_id(&state.db, current_org.id).await?;
+    let subscription_enabled = stripe_config().is_some();
 
     Ok(HtmlTemplate(SubscriptionTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
         subscription,
+        subscription_enabled,
     })
     .into_response())
 }

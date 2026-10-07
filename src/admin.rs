@@ -22,7 +22,7 @@ pub fn idea_admin_router() -> Router<AppState> {
         .route("/{id}/merge", post(merge_ideas))
 }
 
-pub async fn is_admin(session: &Session, db: &SqlitePool, org_id: i64) -> Result<bool, AppError> {
+pub async fn is_admin(db: &SqlitePool, session: &Session, org_id: i64) -> Result<bool, AppError> {
     let Some(user_id) = session.get::<i64>("user_id").await? else {
         return Ok(false);
     };
@@ -59,7 +59,7 @@ async fn update_status(
     Path(id_path): Path<IdParam>,
     Form(form): Form<UpdateStatusForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
     let Some(status) = IdeaStatus::parse(&form.status) else {
@@ -112,7 +112,7 @@ async fn assign_changelog(
     session: Session,
     Form(form): Form<AssignChangelogForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -149,7 +149,7 @@ async fn delete_idea(
     session: Session,
     Path(id_path): Path<IdParam>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
     sqlx::query("DELETE FROM ideas WHERE id = ? AND org_id = ?")
@@ -173,7 +173,7 @@ async fn merge_ideas(
     session: Session,
     Form(form): Form<MergeIdeasForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
