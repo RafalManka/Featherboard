@@ -5,15 +5,16 @@ use crate::models::SubscriptionStatus;
 use crate::org::CurrentOrg;
 use crate::templates::{HtmlTemplate, Layout};
 use askama::Template;
-use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
+use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use std::env;
 use tower_sessions::Session;
+use uuid::Uuid;
 
 pub fn subscriptions_router() -> Router<AppState> {
     Router::new()
@@ -26,10 +27,16 @@ struct CheckoutSessionResponse {
     url: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct StripeCheckoutRequest {
+    idempotency_key: String,
+}
+
 async fn stripe_checkout(
     State(state): State<AppState>,
     current_org: CurrentOrg,
     session: Session,
+    Form(checkout_form): Form<StripeCheckoutRequest>,
 ) -> Result<Response, AppError> {
     if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
@@ -42,6 +49,19 @@ async fn stripe_checkout(
     let Some(public_url) = state.public_url else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
+
+    let Some(idempotency_key) = Uuid::parse_str(&checkout_form.idempotency_key)
+        .ok()
+        .map(|el| el.to_string())
+    else {
+        return Ok(StatusCode::BAD_REQUEST.into_response());
+    };
+
+    if has_ongoing_subscription(&state.db, current_org.id).await? {
+        return Ok(current_org
+            .redirect("/subscriptions".to_string())
+            .into_response());
+    }
 
     let success_url = format!(
         "{}{}",
@@ -69,6 +89,7 @@ async fn stripe_checkout(
     let client = reqwest::Client::new();
     let response = client
         .post("https://api.stripe.com/v1/checkout/sessions")
+        .header("Idempotency-Key", idempotency_key)
         .basic_auth(secret_key, Some(""))
         .form(&form)
         .send()
@@ -84,6 +105,32 @@ async fn stripe_checkout(
     };
 
     Ok(Redirect::to(checkout_url.as_str()).into_response())
+}
+
+async fn has_ongoing_subscription(db: &SqlitePool, org_id: i64) -> Result<bool, AppError> {
+    let sql = r#"
+        SELECT status
+        FROM subscriptions
+        WHERE org_id = ?
+    "#;
+
+    let Some(status) = sqlx::query_scalar::<_, String>(sql)
+        .bind(org_id)
+        .fetch_optional(db)
+        .await?
+    else {
+        return Ok(false);
+    };
+
+    let status = SubscriptionStatus::parse(&status)
+        .ok_or_else(|| anyhow::anyhow!("unknown subscription status in database: {status}"))?;
+
+    let result = !matches!(
+        status,
+        SubscriptionStatus::Canceled | SubscriptionStatus::IncompleteExpired
+    );
+
+    Ok(result)
 }
 
 fn stripe_config() -> Option<(String, String)> {
@@ -120,6 +167,7 @@ impl Subscription {
 #[template(path = "pages/subscription.html")]
 struct SubscriptionTemplate {
     layout: Layout,
+    idempotency_key: String,
     subscription: Option<Subscription>,
     subscription_enabled: bool,
 }
@@ -138,6 +186,7 @@ async fn get_current_subscription(
 
     Ok(HtmlTemplate(SubscriptionTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
+        idempotency_key: Uuid::new_v4().to_string(),
         subscription,
         subscription_enabled,
     })
@@ -205,33 +254,33 @@ mod test {
     use super::*;
     use sqlx::sqlite::SqlitePoolOptions;
 
-    struct TestData {
+    struct TestUpsertData {
         org_id: i64,
         customer_id: &'static str,
         subscription_id: &'static str,
         status: SubscriptionStatus,
     }
 
-    static TEST_DATA: &[TestData] = &[
-        TestData {
+    static TEST_UPSERT_DATA: &[TestUpsertData] = &[
+        TestUpsertData {
             org_id: 1,
             customer_id: "2",
             subscription_id: "3",
             status: SubscriptionStatus::Active,
         },
-        TestData {
+        TestUpsertData {
             org_id: 2,
             customer_id: "5",
             subscription_id: "6",
             status: SubscriptionStatus::Canceled,
         },
-        TestData {
+        TestUpsertData {
             org_id: 1,
             customer_id: "8",
             subscription_id: "9",
             status: SubscriptionStatus::Unpaid,
         },
-        TestData {
+        TestUpsertData {
             org_id: 1,
             customer_id: "2",
             subscription_id: "9",
@@ -264,7 +313,7 @@ mod test {
         .await
         .expect("Failed to create table");
 
-        for test_case in TEST_DATA {
+        for test_case in TEST_UPSERT_DATA {
             let subscription = upsert_from_stripe(
                 &db,
                 test_case.org_id,
@@ -283,5 +332,101 @@ mod test {
             );
             assert_eq!(subscription.status, test_case.status.as_str());
         }
+    }
+
+    struct TestSubscriptionData {
+        org_id: i64,
+        status: SubscriptionStatus,
+        is_ongoing: bool,
+    }
+
+    static TEST_SUBSCRIPTION_DATA: &[TestSubscriptionData] = &[
+        TestSubscriptionData {
+            org_id: 1,
+            status: SubscriptionStatus::Active,
+            is_ongoing: true,
+        },
+        TestSubscriptionData {
+            org_id: 2,
+            status: SubscriptionStatus::Canceled,
+            is_ongoing: false,
+        },
+        TestSubscriptionData {
+            org_id: 3,
+            status: SubscriptionStatus::IncompleteExpired,
+            is_ongoing: false,
+        },
+        TestSubscriptionData {
+            org_id: 4,
+            status: SubscriptionStatus::Unpaid,
+            is_ongoing: true,
+        },
+        TestSubscriptionData {
+            org_id: 5,
+            status: SubscriptionStatus::PastDue,
+            is_ongoing: true,
+        },
+        TestSubscriptionData {
+            org_id: 6,
+            status: SubscriptionStatus::Incomplete,
+            is_ongoing: true,
+        },
+        TestSubscriptionData {
+            org_id: 7,
+            status: SubscriptionStatus::Paused,
+            is_ongoing: true,
+        },
+        TestSubscriptionData {
+            org_id: 8,
+            status: SubscriptionStatus::Trialing,
+            is_ongoing: true,
+        },
+    ];
+
+    #[tokio::test]
+    async fn ongoing_subscription() {
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            r#"
+              CREATE TABLE subscriptions (
+                  org_id INTEGER NOT NULL UNIQUE,
+                  status TEXT NOT NULL
+              )
+              "#,
+        )
+        .execute(&db)
+        .await
+        .expect("Failed to create table");
+
+        for test_data in TEST_SUBSCRIPTION_DATA {
+            sqlx::query(
+                r#"
+              INSERT INTO subscriptions (org_id, status) VALUES (?, ?)
+              "#,
+            )
+            .bind(test_data.org_id)
+            .bind(test_data.status.as_str())
+            .execute(&db)
+            .await
+            .expect("Failed to insert");
+
+            assert_eq!(
+                test_data.is_ongoing,
+                has_ongoing_subscription(&db, test_data.org_id)
+                    .await
+                    .expect("failed querying")
+            )
+        }
+
+        assert!(
+            !has_ongoing_subscription(&db, 9)
+                .await
+                .expect("failed querying")
+        )
     }
 }

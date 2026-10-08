@@ -15,6 +15,7 @@
             </div>
         {% else if subscription_enabled %}
             <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
                 <button type="submit">Subscribe</button>
             </form>
         {% else %}
