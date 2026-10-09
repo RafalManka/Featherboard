@@ -13,7 +13,7 @@
             <div class="idea-meta">
                 <time>{{ subscription.created_date() }}</time>
             </div>
-        {% else if subscription_enabled %}
+        {% else if let Some(idempotency_key) = idempotency_key %}
             <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
                 <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
                 <button type="submit">Subscribe</button>

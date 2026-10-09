@@ -50,9 +50,8 @@ async fn stripe_checkout(
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let Some(idempotency_key) = Uuid::parse_str(&checkout_form.idempotency_key)
-        .ok()
-        .map(|el| el.to_string())
+    let Some(idempotency_key) =
+        validate_idempotency_key(&checkout_form.idempotency_key, &state.db, current_org.id).await?
     else {
         return Ok(StatusCode::BAD_REQUEST.into_response());
     };
@@ -84,6 +83,11 @@ async fn stripe_checkout(
             "subscription_data[metadata][featherboard_org_id]",
             current_org.id.to_string(),
         ),
+        (
+            "subscription_data[metadata][idempotency_key]",
+            idempotency_key.clone(),
+        ),
+        ("metadata[idempotency_key]", idempotency_key.clone()),
     ];
 
     let client = reqwest::Client::new();
@@ -105,6 +109,35 @@ async fn stripe_checkout(
     };
 
     Ok(Redirect::to(checkout_url.as_str()).into_response())
+}
+
+async fn validate_idempotency_key(
+    idempotency_key: &str,
+    db: &SqlitePool,
+    org_id: i64,
+) -> Result<Option<String>, AppError> {
+    let idempotency_key = Uuid::parse_str(idempotency_key)
+        .ok()
+        .map(|el| el.to_string());
+
+    let Some(idempotency_key) = idempotency_key else {
+        return Ok(None);
+    };
+
+    let sql = r#"
+        SELECT EXISTS (SELECT 1 FROM checkouts_attempts WHERE idempotency_key = ? AND org_id = ?)
+    "#;
+
+    if !sqlx::query_scalar::<_, bool>(sql)
+        .bind(&idempotency_key)
+        .bind(org_id)
+        .fetch_one(db)
+        .await?
+    {
+        return Ok(None);
+    }
+
+    Ok(Some(idempotency_key))
 }
 
 async fn has_ongoing_subscription(db: &SqlitePool, org_id: i64) -> Result<bool, AppError> {
@@ -167,9 +200,8 @@ impl Subscription {
 #[template(path = "pages/subscription.html")]
 struct SubscriptionTemplate {
     layout: Layout,
-    idempotency_key: String,
+    idempotency_key: Option<String>,
     subscription: Option<Subscription>,
-    subscription_enabled: bool,
 }
 
 async fn get_current_subscription(
@@ -182,15 +214,45 @@ async fn get_current_subscription(
     }
 
     let subscription = find_by_org_id(&state.db, current_org.id).await?;
-    let subscription_enabled = stripe_config().is_some();
+    let idempotency_key = if stripe_config().is_some() && subscription.is_none() {
+        Some(find_idempotency_key(&state.db, current_org.id).await?)
+    } else {
+        None
+    };
 
     Ok(HtmlTemplate(SubscriptionTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
-        idempotency_key: Uuid::new_v4().to_string(),
+        idempotency_key,
         subscription,
-        subscription_enabled,
     })
     .into_response())
+}
+
+async fn find_idempotency_key(db: &SqlitePool, org_id: i64) -> Result<String, AppError> {
+    let sql = r#"
+        INSERT INTO checkouts_attempts (org_id, idempotency_key)
+        VALUES (?, ?)
+        ON CONFLICT (org_id) DO NOTHING
+    "#;
+
+    sqlx::query(sql)
+        .bind(org_id)
+        .bind(Uuid::new_v4().to_string())
+        .execute(db)
+        .await?;
+
+    let sql = r#"
+        SELECT idempotency_key
+        FROM checkouts_attempts
+        WHERE org_id = ?
+    "#;
+
+    let idempotency_key = sqlx::query_scalar::<_, String>(sql)
+        .bind(org_id)
+        .fetch_one(db)
+        .await?;
+
+    Ok(idempotency_key)
 }
 
 async fn find_by_org_id(db: &SqlitePool, org_id: i64) -> Result<Option<Subscription>, AppError> {
@@ -428,5 +490,88 @@ mod test {
                 .await
                 .expect("failed querying")
         )
+    }
+
+    #[tokio::test]
+    async fn find_idempotency() {
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE checkouts_attempts (
+                    org_id          INTEGER NOT NULL,
+                    idempotency_key TEXT    NOT NULL UNIQUE
+                );
+            CREATE UNIQUE INDEX idx_checkouts_attempts_org_id ON checkouts_attempts (org_id);
+            INSERT INTO checkouts_attempts (org_id, idempotency_key) VALUES (1, 'Foo')
+        "#,
+        )
+        .execute(&db)
+        .await
+        .expect("Failed to create table");
+
+        let key = find_idempotency_key(&db, 1).await.unwrap();
+        assert_eq!("Foo", key);
+        assert_eq!(key, find_idempotency_key(&db, 1).await.unwrap());
+
+        let key = find_idempotency_key(&db, 2).await.unwrap();
+        assert!(Uuid::parse_str(&key).is_ok());
+        assert_eq!(key, find_idempotency_key(&db, 2).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn validate_idempotency() {
+        let db = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        let key = Uuid::new_v4().to_string();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE checkouts_attempts (
+                    org_id          INTEGER NOT NULL,
+                    idempotency_key TEXT    NOT NULL UNIQUE
+                );
+            CREATE UNIQUE INDEX idx_checkouts_attempts_org_id ON checkouts_attempts (org_id);
+            INSERT INTO checkouts_attempts (org_id, idempotency_key) VALUES (1, ?)
+        "#,
+        )
+        .bind(&key)
+        .execute(&db)
+        .await
+        .expect("Failed to create table");
+
+        assert_eq!(
+            key,
+            validate_idempotency_key(&key, &db, 1)
+                .await
+                .unwrap()
+                .unwrap()
+        );
+        assert!(
+            validate_idempotency_key(&key, &db, 2)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            validate_idempotency_key("foo", &db, 1)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            validate_idempotency_key(&Uuid::new_v4().to_string(), &db, 1)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }
