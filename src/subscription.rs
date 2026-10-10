@@ -42,7 +42,7 @@ async fn stripe_checkout(
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
-    let Some((secret_key, price_id)) = stripe_config() else {
+    let Some((secret_key, price_id)) = get_stripe_config() else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
@@ -166,7 +166,7 @@ async fn has_ongoing_subscription(db: &SqlitePool, org_id: i64) -> Result<bool, 
     Ok(result)
 }
 
-fn stripe_config() -> Option<(String, String)> {
+fn get_stripe_config() -> Option<(String, String)> {
     let secret_key = match env::var("STRIPE_SECRET_KEY") {
         Ok(secret) => secret,
         Err(_) => return None,
@@ -200,8 +200,13 @@ impl Subscription {
 #[template(path = "pages/subscription.html")]
 struct SubscriptionTemplate {
     layout: Layout,
-    idempotency_key: Option<String>,
-    subscription: Option<Subscription>,
+    subscription: SubscriptionView,
+}
+
+enum SubscriptionView {
+    Active(Subscription),
+    CanSubscribe(String), // idempotency_key
+    NotConfigured,
 }
 
 async fn get_current_subscription(
@@ -213,16 +218,19 @@ async fn get_current_subscription(
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
-    let subscription = find_by_org_id(&state.db, current_org.id).await?;
-    let idempotency_key = if stripe_config().is_some() && subscription.is_none() {
-        Some(find_idempotency_key(&state.db, current_org.id).await?)
+    let subscription = get_valid_subscription(&state.db, current_org.id).await?;
+    let has_config = get_stripe_config().is_some();
+
+    let subscription = if has_config && let Some(subscription) = subscription {
+        SubscriptionView::Active(subscription)
+    } else if has_config {
+        SubscriptionView::CanSubscribe(find_idempotency_key(&state.db, current_org.id).await?)
     } else {
-        None
+        SubscriptionView::NotConfigured
     };
 
     Ok(HtmlTemplate(SubscriptionTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
-        idempotency_key,
         subscription,
     })
     .into_response())
@@ -255,19 +263,34 @@ async fn find_idempotency_key(db: &SqlitePool, org_id: i64) -> Result<String, Ap
     Ok(idempotency_key)
 }
 
-async fn find_by_org_id(db: &SqlitePool, org_id: i64) -> Result<Option<Subscription>, AppError> {
+async fn get_valid_subscription(
+    db: &SqlitePool,
+    org_id: i64,
+) -> Result<Option<Subscription>, AppError> {
     let sql = r#"
         SELECT id, org_id, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at
         FROM subscriptions
         WHERE org_id = ?
     "#;
-
     let subscription = sqlx::query_as::<_, Subscription>(sql)
         .bind(org_id)
         .fetch_optional(db)
         .await?;
-
-    Ok(subscription)
+    let Some(subscription) = subscription else {
+        return Ok(None);
+    };
+    let status = SubscriptionStatus::parse(subscription.status.as_str());
+    let Some(status) = status else {
+        return Ok(None);
+    };
+    if !matches!(
+        status,
+        SubscriptionStatus::Canceled | SubscriptionStatus::IncompleteExpired
+    ) {
+        Ok(Some(subscription))
+    } else {
+        Ok(None)
+    }
 }
 
 pub async fn upsert_from_stripe(

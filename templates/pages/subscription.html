@@ -8,20 +8,20 @@
 <div class="idea-detail-card">
     <div class="idea-main">
         <h1>Subscription</h1>
-        {% if let Some(subscription) = subscription %}
-            <p class="idea-description">{{ subscription.status }}</p>
-            <div class="idea-meta">
-                <time>{{ subscription.created_date() }}</time>
-            </div>
-        {% else if let Some(idempotency_key) = idempotency_key %}
-            <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
-                <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
-                <button type="submit">Subscribe</button>
-            </form>
-        {% else %}
-            <p>Billing is not configured for this instance.</p>
-        {% endif %}
-
+        {% match subscription %}
+            {% when SubscriptionView::Active(subscription) %}
+                <p class="idea-description">{{ subscription.status }}</p>
+                <div class="idea-meta">
+                    <time>{{ subscription.created_date() }}</time>
+                </div>
+            {% when SubscriptionView::CanSubscribe(idempotency_key) %}
+                <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                    <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+                    <button type="submit">Subscribe</button>
+                </form>
+            {% when SubscriptionView::NotConfigured %}
+                <p>Billing is not configured for this instance.</p>
+        {% endmatch %}
     </div>
 </div>
 {% endblock %}
