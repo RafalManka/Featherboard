@@ -4,6 +4,7 @@ use axum::extract::{FromRequestParts, OriginalUri};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Redirect, Response};
+use sqlx::SqlitePool;
 use std::convert::Infallible;
 
 pub enum CurrentOrgRejection {
@@ -46,6 +47,33 @@ impl CurrentOrg {
     }
     pub fn hx_redirect(self, p: String) -> [(&'static str, String); 1] {
         [("HX-Redirect", self.path(p))]
+    }
+}
+
+impl CurrentOrg {
+    pub async fn from_id(db: &SqlitePool, org_id: &str) -> Result<Option<CurrentOrg>, AppError> {
+        let Ok(org_id) = org_id.parse::<i64>() else {
+            return Ok(None);
+        };
+
+        let sql = r#"
+            SELECT
+                id,
+                slug,
+                github_client_secret,
+                github_client_id,
+                accent_color,
+                logo_url
+            FROM organizations
+            WHERE id = ?
+        "#;
+
+        let current_org = sqlx::query_as::<_, CurrentOrg>(sql)
+            .bind(org_id)
+            .fetch_optional(db)
+            .await?;
+
+        Ok(current_org)
     }
 }
 

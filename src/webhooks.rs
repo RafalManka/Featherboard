@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::SubscriptionStatus;
+use crate::org::CurrentOrg;
 use crate::subscription::upsert_from_stripe;
 use axum::Router;
 use axum::body::Bytes;
@@ -138,8 +139,8 @@ async fn handle_subscription_event(
         return Ok((StatusCode::BAD_REQUEST, "missing organization metadata").into_response());
     };
 
-    let Ok(org_id) = org_id.parse::<i64>() else {
-        return Ok((StatusCode::BAD_REQUEST, "invalid organization metadata").into_response());
+    let Some(current_org) = CurrentOrg::from_id(db, org_id).await? else {
+        return Ok((StatusCode::NOT_FOUND, "organization not found").into_response());
     };
 
     let idempotency_key = if matches!(event_type, "customer.subscription.created") {
@@ -153,7 +154,7 @@ async fn handle_subscription_event(
 
     upsert_from_stripe(
         db,
-        org_id,
+        current_org.id,
         &event.data.object.customer,
         &event.data.object.id,
         status,
