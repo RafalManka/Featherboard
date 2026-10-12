@@ -1,4 +1,8 @@
 use crate::AppState;
+use crate::email::{
+    EmailClient, PaymentFailedEmail, PaymentSuccessEmail, notify_payment_failed,
+    notify_payment_success,
+};
 use crate::error::AppError;
 use crate::models::SubscriptionStatus;
 use crate::org::CurrentOrg;
@@ -93,8 +97,125 @@ async fn stripe_webhook(
             handle_subscription_event(&event_type, &body, &state.db).await
         }
         "checkout.session.expired" => handle_session_event(&body, &state.db).await,
+        "invoice.payment_failed" => {
+            handle_invoice_payment_failed(&state, &body, &state.db, &state.email_client).await
+        }
+        "invoice.paid" => handle_invoice_paid(&state, &body, &state.db, &state.email_client).await,
         _ => Ok(StatusCode::OK.into_response()),
     }
+}
+
+async fn handle_invoice_paid(
+    state: &AppState,
+    body: &Bytes,
+    db: &SqlitePool,
+    email_client: &Option<EmailClient>,
+) -> Result<Response, AppError> {
+    let Ok(event) = serde_json::from_slice::<StripeInvoiceEvent>(body) else {
+        return Ok((StatusCode::BAD_REQUEST, "invalid subscription event").into_response());
+    };
+
+    let stripe_subscription_id = event.data.object.subscription;
+    let Some(org_id) = find_org_id_by_subscription_id(db, &stripe_subscription_id).await? else {
+        return Ok((StatusCode::NOT_FOUND, "subscription not found").into_response());
+    };
+
+    let Some(current_org) = CurrentOrg::from_id(db, org_id).await? else {
+        return Ok((StatusCode::NOT_FOUND, "organization not found").into_response());
+    };
+
+    let Some(email_client) = email_client else {
+        return Ok(StatusCode::OK.into_response());
+    };
+
+    let Some(public_url) = &state.public_url else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    };
+
+    let subscription_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+
+    notify_payment_success(
+        db,
+        &current_org,
+        email_client,
+        PaymentSuccessEmail { subscription_url },
+    )
+    .await?;
+
+    Ok(StatusCode::OK.into_response())
+}
+
+#[derive(serde::Deserialize)]
+struct StripeInvoiceObject {
+    subscription: String,
+}
+
+#[derive(serde::Deserialize)]
+struct StripeInvoiceData {
+    object: StripeInvoiceObject,
+}
+
+#[derive(serde::Deserialize)]
+struct StripeInvoiceEvent {
+    data: StripeInvoiceData,
+}
+
+async fn handle_invoice_payment_failed(
+    state: &AppState,
+    body: &Bytes,
+    db: &SqlitePool,
+    email_client: &Option<EmailClient>,
+) -> Result<Response, AppError> {
+    let Ok(event) = serde_json::from_slice::<StripeInvoiceEvent>(body) else {
+        return Ok((StatusCode::BAD_REQUEST, "invalid subscription event").into_response());
+    };
+
+    let stripe_subscription_id = event.data.object.subscription;
+
+    let Some(org_id) = find_org_id_by_subscription_id(db, &stripe_subscription_id).await? else {
+        return Ok((StatusCode::NOT_FOUND, "subscription not found").into_response());
+    };
+
+    let Some(current_org) = CurrentOrg::from_id(db, org_id).await? else {
+        return Ok((StatusCode::NOT_FOUND, "organization not found").into_response());
+    };
+
+    let Some(email_client) = email_client else {
+        return Ok(StatusCode::OK.into_response());
+    };
+
+    let Some(public_url) = &state.public_url else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    };
+
+    let payment_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+
+    notify_payment_failed(
+        db,
+        &current_org,
+        email_client,
+        PaymentFailedEmail { payment_url },
+    )
+    .await?;
+
+    Ok(StatusCode::OK.into_response())
+}
+
+async fn find_org_id_by_subscription_id(
+    db: &SqlitePool,
+    subscription_id: &str,
+) -> Result<Option<i64>, AppError> {
+    let sql = r#"
+        SELECT org_id
+        FROM subscriptions
+        WHERE stripe_subscription_id = ?
+    "#;
+    let subscription = sqlx::query_scalar::<_, i64>(sql)
+        .bind(subscription_id)
+        .fetch_optional(db)
+        .await?;
+
+    Ok(subscription)
 }
 
 async fn handle_session_event(body: &Bytes, db: &SqlitePool) -> Result<Response, AppError> {
@@ -137,6 +258,10 @@ async fn handle_subscription_event(
 
     let Some(org_id) = event.data.object.metadata.get("featherboard_org_id") else {
         return Ok((StatusCode::BAD_REQUEST, "missing organization metadata").into_response());
+    };
+
+    let Ok(org_id) = org_id.parse::<i64>() else {
+        return Ok((StatusCode::BAD_REQUEST, "invalid organization id format").into_response());
     };
 
     let Some(current_org) = CurrentOrg::from_id(db, org_id).await? else {

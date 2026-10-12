@@ -108,7 +108,7 @@ async fn create_changelog(
     if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
         let changelog_title = title;
         let changelog_body = description;
-        let changelog_url = current_org.path(path.clone());
+        let changelog_url = current_org.path(&path);
         let changelog_url = format!("{}{}", public_url, changelog_url);
 
         notify_changelog_created(
@@ -124,7 +124,7 @@ async fn create_changelog(
         .await?;
     }
 
-    Ok(current_org.redirect(path).into_response())
+    Ok(current_org.redirect(&path).into_response())
 }
 #[derive(Template)]
 #[template(path = "pages/changelog_list.html")]

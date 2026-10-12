@@ -526,7 +526,7 @@ async fn create_idea(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(current_org.redirect(format!("/ideas/{id}")).into_response())
+    Ok(current_org.redirect(&format!("/ideas/{id}")).into_response())
 }
 
 pub async fn get_idea_title(

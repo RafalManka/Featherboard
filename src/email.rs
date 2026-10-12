@@ -58,6 +58,88 @@ impl EmailClient {
 }
 
 #[derive(Template)]
+#[template(path = "emails/payment_success.html")]
+pub struct PaymentSuccessEmail {
+    pub subscription_url: String,
+}
+
+pub async fn notify_payment_success(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    template: PaymentSuccessEmail,
+) -> Result<(), AppError> {
+    let sql = r#"
+           SELECT email
+           FROM users
+           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+        "#;
+
+    let emails: Vec<String> = sqlx::query_scalar(sql)
+        .bind(current_org.id)
+        .fetch_all(db)
+        .await
+        .unwrap_or(vec![]);
+
+    for email in emails {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(current_org.slug.clone()),
+                email_client.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, email.parse()?))
+            .subject("Your subscription has been paid")
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = email_client.send_email(&message);
+    }
+
+    Ok(())
+}
+
+#[derive(Template)]
+#[template(path = "emails/payment_failed.html")]
+pub struct PaymentFailedEmail {
+    pub payment_url: String,
+}
+
+pub async fn notify_payment_failed(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    template: PaymentFailedEmail,
+) -> Result<(), AppError> {
+    let sql = r#"
+           SELECT email
+           FROM users
+           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+        "#;
+
+    let emails: Vec<String> = sqlx::query_scalar(sql)
+        .bind(current_org.id)
+        .fetch_all(db)
+        .await
+        .unwrap_or(vec![]);
+
+    for email in emails {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(current_org.slug.clone()),
+                email_client.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, email.parse()?))
+            .subject("Payment failed for your Featherboard subscription")
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = email_client.send_email(&message);
+    }
+
+    Ok(())
+}
+
+#[derive(Template)]
 #[template(path = "emails/comment_created.html")]
 pub struct NewCommentEmail {
     pub idea_title: String,

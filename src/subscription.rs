@@ -57,21 +57,11 @@ async fn stripe_checkout(
     };
 
     if has_ongoing_subscription(&state.db, current_org.id).await? {
-        return Ok(current_org
-            .redirect("/subscriptions".to_string())
-            .into_response());
+        return Ok(current_org.redirect("/subscriptions").into_response());
     }
 
-    let success_url = format!(
-        "{}{}",
-        public_url,
-        current_org.path("/subscriptions".to_string())
-    );
-    let cancel_url = format!(
-        "{}{}",
-        public_url,
-        current_org.path("/subscriptions".to_string())
-    );
+    let success_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+    let cancel_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
 
     let form = [
         ("success_url", success_url),

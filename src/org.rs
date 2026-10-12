@@ -39,23 +39,19 @@ pub struct CurrentOrg {
 }
 
 impl CurrentOrg {
-    pub fn path(&self, path: String) -> String {
+    pub fn path(&self, path: &str) -> String {
         format!("/{}{}", self.slug, path)
     }
-    pub fn redirect(self, p: String) -> Redirect {
+    pub fn redirect(self, p: &str) -> Redirect {
         Redirect::to(self.path(p).as_str())
     }
-    pub fn hx_redirect(self, p: String) -> [(&'static str, String); 1] {
+    pub fn hx_redirect(self, p: &str) -> [(&'static str, String); 1] {
         [("HX-Redirect", self.path(p))]
     }
 }
 
 impl CurrentOrg {
-    pub async fn from_id(db: &SqlitePool, org_id: &str) -> Result<Option<CurrentOrg>, AppError> {
-        let Ok(org_id) = org_id.parse::<i64>() else {
-            return Ok(None);
-        };
-
+    pub async fn from_id(db: &SqlitePool, org_id: i64) -> Result<Option<CurrentOrg>, AppError> {
         let sql = r#"
             SELECT
                 id,

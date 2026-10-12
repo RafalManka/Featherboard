@@ -164,7 +164,7 @@ async fn auth_github_callback(
 
     session.insert("user_id", user_id).await?;
 
-    Ok(current_org.redirect(String::new()).into_response())
+    Ok(current_org.redirect("").into_response())
 }
 
 async fn auth_github(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {

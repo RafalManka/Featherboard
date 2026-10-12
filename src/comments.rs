@@ -114,7 +114,7 @@ async fn create_comment(
 
     if author_error.is_some() || body_error.is_some() {
         return Ok(current_org
-            .redirect(format!("/ideas/{}?comment_error=1", id_param.id))
+            .redirect(&format!("/ideas/{}?comment_error=1", id_param.id))
             .into_response());
     }
 
@@ -155,7 +155,7 @@ async fn create_comment(
         let comment_body = body;
         let idea_title = get_idea_title(&state.db, &current_org, id_param.id).await?;
 
-        let idea_url = current_org.path(format!("/ideas/{}", id_param.id));
+        let idea_url = current_org.path(&format!("/ideas/{}", id_param.id));
         let idea_url = format!("{}{}", public_url, idea_url);
         notify_comment_created(
             &state.db,
@@ -172,7 +172,7 @@ async fn create_comment(
     }
 
     Ok(current_org
-        .redirect(format!("/ideas/{}", id_param.id))
+        .redirect(&format!("/ideas/{}", id_param.id))
         .into_response())
 }
 

@@ -79,7 +79,7 @@ async fn update_status(
 
     if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
         let idea_title = get_idea_title(&state.db, &current_org, id_path.id).await?;
-        let idea_url = current_org.path(format!("/ideas/{}", id_path.id));
+        let idea_url = current_org.path(&format!("/ideas/{}", id_path.id));
         let idea_url = format!("{}{}", public_url, idea_url);
         let new_status = status.label().to_string();
         notify_status_changed(
@@ -96,7 +96,7 @@ async fn update_status(
     }
 
     Ok(current_org
-        .redirect(format!("/ideas/{}", id_path.id))
+        .redirect(&format!("/ideas/{}", id_path.id))
         .into_response())
 }
 
@@ -139,7 +139,7 @@ async fn assign_changelog(
         .await?;
 
     Ok(current_org
-        .redirect(format!("/ideas/{}", id_path.id))
+        .redirect(&format!("/ideas/{}", id_path.id))
         .into_response())
 }
 
@@ -158,7 +158,7 @@ async fn delete_idea(
         .execute(&state.db)
         .await?;
 
-    Ok((StatusCode::OK, current_org.hx_redirect(String::new())).into_response())
+    Ok((StatusCode::OK, current_org.hx_redirect("")).into_response())
 }
 
 #[derive(Deserialize)]
@@ -230,6 +230,6 @@ async fn merge_ideas(
         .await?;
 
     Ok(current_org
-        .redirect(format!("/ideas/{}", form.canonical_idea_id))
+        .redirect(&format!("/ideas/{}", form.canonical_idea_id))
         .into_response())
 }
