@@ -14,6 +14,9 @@
                 <div class="idea-meta">
                     <time>{{ subscription.created_date() }}</time>
                 </div>
+                <form method="post" action="/{{ layout.org_slug }}/subscriptions/portal">
+                    <button type="submit">Manage subscription</button>
+                </form>
             {% when SubscriptionView::CanSubscribe(idempotency_key) %}
                 <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
                     <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">

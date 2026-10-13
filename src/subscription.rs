@@ -20,6 +20,67 @@ pub fn subscriptions_router() -> Router<AppState> {
     Router::new()
         .route("/", get(get_current_subscription))
         .route("/checkout", post(stripe_checkout))
+        .route("/portal", post(subscriptions_portal))
+}
+
+async fn subscriptions_portal(
+    State(state): State<AppState>,
+    current_org: CurrentOrg,
+    session: Session,
+) -> Result<Response, AppError> {
+    if !is_admin(&state.db, &session, current_org.id).await? {
+        return Ok(StatusCode::FORBIDDEN.into_response());
+    }
+
+    let Some((secret_key, _)) = get_stripe_config() else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    };
+
+    let Some(public_url) = state.public_url else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    };
+
+    let Some(stripe_customer_id) = get_stripe_customer_id(&state.db, current_org.id).await? else {
+        return Ok(StatusCode::NOT_FOUND.into_response());
+    };
+
+    let return_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+
+    let form = [("return_url", return_url), ("customer", stripe_customer_id)];
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.stripe.com/v1/billing_portal/sessions")
+        .basic_auth(secret_key, Some(""))
+        .form(&form)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<CheckoutSessionResponse>()
+        .await?;
+
+    let checkout_url = response.url;
+
+    let Some(checkout_url) = checkout_url else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    };
+
+    Ok(Redirect::to(checkout_url.as_str()).into_response())
+}
+
+async fn get_stripe_customer_id(db: &SqlitePool, org_id: i64) -> Result<Option<String>, AppError> {
+    let sql = r#"
+        SELECT stripe_customer_id
+        FROM subscriptions
+        WHERE org_id = ?
+    "#;
+
+    let stripe_customer_id: Option<String> = sqlx::query_scalar(sql)
+        .bind(org_id)
+        .fetch_optional(db)
+        .await?;
+
+    Ok(stripe_customer_id)
 }
 
 #[derive(Deserialize)]
