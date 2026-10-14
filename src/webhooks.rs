@@ -370,10 +370,25 @@ mod test {
 
         sqlx::query(
             r#"
+            CREATE TABLE organizations
+            (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                name       TEXT NOT NULL,
+                slug       TEXT NOT NULL UNIQUE,
+                github_client_secret       TEXT,
+                github_client_id       TEXT,
+                accent_color      TEXT,
+                logo_url       TEXT,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+
+            INSERT INTO organizations (id, name, slug, github_client_secret, github_client_id, accent_color, logo_url)
+            VALUES (1, 'Test Org', 'test', NULL, NULL, NULL, NULL);
+
             CREATE TABLE checkouts_attempts (
                 org_id INTEGER NOT NULL,
                 idempotency_key TEXT NOT NULL UNIQUE
-            )
+            );
             "#,
         )
         .execute(&db)

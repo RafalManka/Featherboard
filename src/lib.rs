@@ -67,7 +67,7 @@ pub fn app_router(
     app
 }
 
-pub fn org_router() -> Router<AppState> {
+fn org_router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_ideas))
         .route("/roadmap", get(roadmap))
