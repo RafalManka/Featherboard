@@ -1,51 +1,14 @@
-mod admin;
-mod auth;
-mod auth_github;
-mod changelog;
-mod comments;
-mod email;
-mod error;
-mod ideas;
-mod login;
-mod models;
-mod org;
-mod static_assets;
-mod subscription;
-mod templates;
-mod validation;
-mod webhooks;
-
-use crate::auth::auth_router;
-use crate::changelog::changelog_router;
-use crate::email::EmailClient;
-use crate::ideas::{ideas_router, list_ideas, roadmap};
-use crate::login::login_router;
-use crate::subscription::subscriptions_router;
-use crate::webhooks::webhooks_router;
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect, Response};
-use axum::{Router, routing::get};
-use error::AppError;
-use sqlx::SqlitePool;
+use featherboard::app_router;
+use featherboard::email::EmailClient;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::env;
 use std::io::IsTerminal;
 use std::str::FromStr;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tower_sessions::cookie::SameSite;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
-use tracing::Level;
 use tracing_subscriber::EnvFilter;
-
-#[derive(Clone)]
-struct AppState {
-    public_url: Option<String>,
-    db: SqlitePool,
-    email_client: Option<EmailClient>,
-}
 
 #[tokio::main]
 async fn main() {
@@ -57,7 +20,7 @@ async fn main() {
         .init();
 
     let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:featherboard.db?mode=rwc".into());
+        env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:featherboard.db?mode=rwc".into());
 
     let options = SqliteConnectOptions::from_str(&database_url)
         .expect("failed to connect to database")
@@ -91,34 +54,9 @@ async fn main() {
         .ok()
         .map(|e| e.trim_end_matches('/').to_string());
 
-    let app = Router::new()
-        .route("/", get(list_ideas))
-        .route("/roadmap", get(roadmap))
-        .nest("/ideas", ideas_router())
-        .nest("/changelogs", changelog_router())
-        .nest("/auth", auth_router())
-        .nest("/subscriptions", subscriptions_router())
-        .merge(login_router());
+    let app = app_router(db, session_layer, email_client, public_url);
 
-    let app = Router::new()
-        .route("/", get(root_redirect))
-        .nest("/{slug}", app)
-        .nest("/webhooks", webhooks_router())
-        .route("/static/{*path}", get(static_assets::serve))
-        .route("/healthz", get(healthz))
-        .with_state(AppState {
-            public_url,
-            db,
-            email_client,
-        })
-        .layer(session_layer)
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(DefaultOnResponse::new().level(Level::INFO)),
-        );
-
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".into());
+    let port = env::var("PORT").unwrap_or_else(|_| "3000".into());
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
@@ -126,27 +64,4 @@ async fn main() {
 
     tracing::info!("listening on {addr}");
     axum::serve(listener, app).await.expect("server error");
-}
-
-async fn root_redirect(State(state): State<AppState>) -> Result<Response, AppError> {
-    let sql = r#"
-        SELECT slug
-        FROM organizations
-        ORDER BY id ASC
-        LIMIT 1
-    "#;
-
-    let slug = sqlx::query_scalar::<_, String>(&sql)
-        .fetch_optional(&state.db)
-        .await?;
-
-    match slug {
-        None => Ok((StatusCode::NOT_FOUND, "organization not found").into_response()),
-        Some(slug) => Ok(Redirect::to(&format!("/{}", slug)).into_response()),
-    }
-}
-
-async fn healthz(State(state): State<AppState>) -> Result<&'static str, AppError> {
-    sqlx::query("SELECT 1").execute(&state.db).await?;
-    Ok("ok")
 }

@@ -604,6 +604,7 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "lettre",
+ "log",
  "rand 0.10.2",
  "reqwest",
  "rust-embed",
