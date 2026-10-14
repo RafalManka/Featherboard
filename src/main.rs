@@ -1,13 +1,9 @@
-use featherboard::app_router;
 use featherboard::email::EmailClient;
+use featherboard::{app_router, session_store};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::env;
 use std::io::IsTerminal;
 use std::str::FromStr;
-use tower_sessions::cookie::SameSite;
-use tower_sessions::cookie::time::Duration;
-use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -36,15 +32,7 @@ async fn main() {
         .await
         .expect("failed to run migrations");
 
-    let session_store = SqliteStore::new(db.clone());
-    session_store
-        .migrate()
-        .await
-        .expect("failed to run session store migrations");
-
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_expiry(Expiry::OnInactivity(Duration::days(365)))
-        .with_same_site(SameSite::Lax);
+    let session_layer = session_store(&db).await;
 
     let email_client = EmailClient::load();
     if email_client.is_none() {

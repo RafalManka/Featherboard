@@ -1,14 +1,14 @@
 mod common;
 
-use crate::common::{session_layer, test_db};
-use featherboard::app_router;
+use crate::common::test_db;
+use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
 #[tokio::test]
 async fn healthz_returns_ok() {
     let db = test_db().await;
-    let session_layer = session_layer(&db).await;
+    let session_layer = session_store(&db).await;
 
     let app = app_router(db, session_layer, None, None);
 

@@ -13,7 +13,9 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
-use tower_sessions::SessionManagerLayer;
+use tower_sessions::cookie::SameSite;
+use tower_sessions::cookie::time::Duration;
+use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::Level;
 
@@ -41,6 +43,18 @@ pub struct AppState {
     pub email_client: Option<EmailClient>,
 }
 
+pub async fn session_store(db: &Pool<Sqlite>) -> SessionManagerLayer<SqliteStore> {
+    let session_store = SqliteStore::new(db.clone());
+    session_store
+        .migrate()
+        .await
+        .expect("failed to run session store migrations");
+
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_expiry(Expiry::OnInactivity(Duration::days(365)))
+        .with_same_site(SameSite::Lax);
+    session_layer
+}
 pub fn app_router(
     db: Pool<Sqlite>,
     session_layer: SessionManagerLayer<SqliteStore>,
