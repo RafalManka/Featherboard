@@ -31,6 +31,7 @@ struct StripeEvent {
 }
 #[derive(serde::Deserialize)]
 struct StripeSubscriptionEvent {
+    created: i64,
     data: StripeEventData,
 }
 
@@ -277,12 +278,13 @@ async fn handle_subscription_event(
         None
     };
 
-    upsert_from_stripe(
+    let result = upsert_from_stripe(
         db,
         current_org.id,
         &event.data.object.customer,
         &event.data.object.id,
         status,
+        event.created,
     )
     .await?;
 
@@ -290,14 +292,24 @@ async fn handle_subscription_event(
         delete_checkout_attempt(db, idempotency_key).await?;
     }
 
-    tracing::debug!(
-        org_id,
-        subscription_id = %event.data.object.id,
-        customer_id = %event.data.object.customer,
-        status = %status.as_str(),
-        prefix = "received event",
-        event = %event_type
-    );
+    match result {
+        None => tracing::debug!(
+            org_id,
+            subscription_id = %event.data.object.id,
+            customer_id = %event.data.object.customer,
+            status = %status.as_str(),
+            prefix = "ignored event",
+            event = %event_type
+        ),
+        Some(_) => tracing::debug!(
+            org_id,
+            subscription_id = %event.data.object.id,
+            customer_id = %event.data.object.customer,
+            status = %status.as_str(),
+            prefix = "received event",
+            event = %event_type
+        ),
+    }
 
     Ok(StatusCode::OK.into_response())
 }
@@ -391,9 +403,9 @@ mod test {
             );
             "#,
         )
-        .execute(&db)
-        .await
-        .unwrap();
+            .execute(&db)
+            .await
+            .unwrap();
 
         sqlx::query(
             r#"
@@ -404,7 +416,8 @@ mod test {
                 stripe_subscription_id TEXT NOT NULL UNIQUE,
                 status TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT 'now',
-                updated_at TEXT NOT NULL DEFAULT 'now'
+                updated_at TEXT NOT NULL DEFAULT 'now',
+                stripe_event_created_at INTEGER NOT NULL DEFAULT 0
             )
             "#,
         )
@@ -452,7 +465,7 @@ mod test {
         let key = "attempt-key";
         insert_attempt(&db, 1, key).await;
         let body = Bytes::from(format!(
-            r#"{{"data":{{"object":{{"id":"sub_test","customer":"cus_test","status":"active","metadata":{{"featherboard_org_id":"1","idempotency_key":"{key}"}}}}}}}}"#
+            r#"{{"created":1000,"data":{{"object":{{"id":"sub_test","customer":"cus_test","status":"active","metadata":{{"featherboard_org_id":"1","idempotency_key":"{key}"}}}}}}}}"#
         ));
 
         let response = handle_subscription_event("customer.subscription.created", &body, &db)

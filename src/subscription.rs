@@ -239,6 +239,7 @@ pub struct Subscription {
     pub status: String,
     pub created_at: String,
     pub updated_at: String,
+    pub stripe_event_created_at: i64,
 }
 
 impl Subscription {
@@ -319,7 +320,7 @@ async fn get_valid_subscription(
     org_id: i64,
 ) -> Result<Option<Subscription>, AppError> {
     let sql = r#"
-        SELECT id, org_id, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at
+        SELECT id, org_id, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at, stripe_event_created_at
         FROM subscriptions
         WHERE org_id = ?
     "#;
@@ -350,20 +351,24 @@ pub async fn upsert_from_stripe(
     customer_id: &str,
     subscription_id: &str,
     status: SubscriptionStatus,
-) -> Result<Subscription, AppError> {
+    stripe_event_created_at: i64,
+) -> Result<Option<Subscription>, AppError> {
     let sql = r#"
         INSERT INTO subscriptions (
             org_id,
             stripe_customer_id,
             stripe_subscription_id,
-            status
+            status,
+            stripe_event_created_at
         )
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (org_id) DO UPDATE SET
             stripe_customer_id = excluded.stripe_customer_id,
             stripe_subscription_id = excluded.stripe_subscription_id,
             status = excluded.status,
-            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+            stripe_event_created_at = excluded.stripe_event_created_at
+        WHERE excluded.stripe_event_created_at >= stripe_event_created_at
         RETURNING
             id,
             org_id,
@@ -371,7 +376,8 @@ pub async fn upsert_from_stripe(
             stripe_subscription_id,
             status,
             created_at,
-            updated_at
+            updated_at,
+            stripe_event_created_at
     "#;
 
     let result = sqlx::query_as::<_, Subscription>(sql)
@@ -379,7 +385,8 @@ pub async fn upsert_from_stripe(
         .bind(customer_id)
         .bind(subscription_id)
         .bind(status.as_str())
-        .fetch_one(db)
+        .bind(stripe_event_created_at)
+        .fetch_optional(db)
         .await?;
 
     Ok(result)
@@ -395,6 +402,7 @@ mod test {
         customer_id: &'static str,
         subscription_id: &'static str,
         status: SubscriptionStatus,
+        stripe_event_created_at: i64,
     }
 
     static TEST_UPSERT_DATA: &[TestUpsertData] = &[
@@ -403,24 +411,28 @@ mod test {
             customer_id: "2",
             subscription_id: "3",
             status: SubscriptionStatus::Active,
+            stripe_event_created_at: 1000,
         },
         TestUpsertData {
             org_id: 2,
             customer_id: "5",
             subscription_id: "6",
             status: SubscriptionStatus::Canceled,
+            stripe_event_created_at: 1000,
         },
         TestUpsertData {
             org_id: 1,
             customer_id: "8",
             subscription_id: "9",
             status: SubscriptionStatus::Unpaid,
+            stripe_event_created_at: 1000,
         },
         TestUpsertData {
             org_id: 1,
             customer_id: "2",
             subscription_id: "9",
             status: SubscriptionStatus::Canceled,
+            stripe_event_created_at: 1000,
         },
     ];
 
@@ -441,7 +453,8 @@ mod test {
                   stripe_subscription_id TEXT NOT NULL UNIQUE,
                   status TEXT NOT NULL,
                   created_at TEXT NOT NULL DEFAULT 'now',
-                  updated_at TEXT NOT NULL DEFAULT 'now'
+                  updated_at TEXT NOT NULL DEFAULT 'now',
+                  stripe_event_created_at INTEGER NOT NULL DEFAULT 0
               )
               "#,
         )
@@ -456,8 +469,10 @@ mod test {
                 test_case.customer_id,
                 test_case.subscription_id,
                 test_case.status,
+                test_case.stripe_event_created_at,
             )
             .await
+            .expect("Error upserting customer")
             .expect("Error upserting customer");
 
             assert_eq!(subscription.org_id, test_case.org_id);

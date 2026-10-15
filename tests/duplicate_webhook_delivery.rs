@@ -38,7 +38,7 @@ async fn replayed_subscription_created_event_does_not_duplicate_or_error() {
     let session_layer = session_store(&db).await;
     let app = app_router(db.clone(), session_layer, None, None);
 
-    let body = br#"{"type":"customer.subscription.created","data":{"object":{"id":"sub_test","customer":"cus_test","status":"active","metadata":{"featherboard_org_id":"1","idempotency_key":"attempt-key"}}}}"#.to_vec();
+    let body = br#"{"type":"customer.subscription.created","created":1700000000,"data":{"object":{"id":"sub_test","customer":"cus_test","status":"active","metadata":{"featherboard_org_id":"1","idempotency_key":"attempt-key"}}}}"#.to_vec();
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
