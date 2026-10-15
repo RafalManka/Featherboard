@@ -284,7 +284,7 @@ async fn idea_detail(
         voted,
     };
     let comments = comments::comments_for_idea(&state, id.id).await?;
-    let is_admin = admin::is_admin(&session, &state.db, current_org.id).await?;
+    let is_admin = admin::is_admin(&state.db, &session, current_org.id).await?;
 
     let sql = r#"
         SELECT
@@ -526,7 +526,7 @@ async fn create_idea(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(current_org.redirect(format!("/ideas/{id}")).into_response())
+    Ok(current_org.redirect(&format!("/ideas/{id}")).into_response())
 }
 
 pub async fn get_idea_title(

@@ -12,7 +12,6 @@ use std::env;
 
 #[derive(Clone)]
 pub struct EmailClient {
-    pub public_url: String,
     pub sender: String,
     password: String,
     smtp: String,
@@ -33,19 +32,12 @@ impl EmailClient {
         let Some(port) = env::var("SMTP_PORT").ok() else {
             return None;
         };
-        let Some(public_url) = env::var("PUBLIC_URL")
-            .ok()
-            .map(|e| e.trim_end_matches('/').to_string())
-        else {
-            return None;
-        };
 
         let Some(port) = port.parse().ok() else {
             return None;
         };
 
         Some(EmailClient {
-            public_url,
             sender,
             password,
             smtp,
@@ -63,6 +55,88 @@ impl EmailClient {
             .send(&message)?;
         Ok(())
     }
+}
+
+#[derive(Template)]
+#[template(path = "emails/payment_success.html")]
+pub struct PaymentSuccessEmail {
+    pub subscription_url: String,
+}
+
+pub async fn notify_payment_success(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    template: PaymentSuccessEmail,
+) -> Result<(), AppError> {
+    let sql = r#"
+           SELECT email
+           FROM users
+           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+        "#;
+
+    let emails: Vec<String> = sqlx::query_scalar(sql)
+        .bind(current_org.id)
+        .fetch_all(db)
+        .await
+        .unwrap_or(vec![]);
+
+    for email in emails {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(current_org.slug.clone()),
+                email_client.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, email.parse()?))
+            .subject("Your subscription has been paid")
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = email_client.send_email(&message);
+    }
+
+    Ok(())
+}
+
+#[derive(Template)]
+#[template(path = "emails/payment_failed.html")]
+pub struct PaymentFailedEmail {
+    pub payment_url: String,
+}
+
+pub async fn notify_payment_failed(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    template: PaymentFailedEmail,
+) -> Result<(), AppError> {
+    let sql = r#"
+           SELECT email
+           FROM users
+           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+        "#;
+
+    let emails: Vec<String> = sqlx::query_scalar(sql)
+        .bind(current_org.id)
+        .fetch_all(db)
+        .await
+        .unwrap_or(vec![]);
+
+    for email in emails {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(current_org.slug.clone()),
+                email_client.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, email.parse()?))
+            .subject("Payment failed for your Featherboard subscription")
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = email_client.send_email(&message);
+    }
+
+    Ok(())
 }
 
 #[derive(Template)]
@@ -140,7 +214,10 @@ pub async fn notify_status_changed(
                 email_client.sender.parse()?,
             ))
             .to(Mailbox::new(None, email.parse()?))
-            .subject(format!("Status changed to {}: {}", template.new_status, template.idea_title))
+            .subject(format!(
+                "Status changed to {}: {}",
+                template.new_status, template.idea_title
+            ))
             .header(ContentType::TEXT_HTML)
             .body(template.render()?)?;
 

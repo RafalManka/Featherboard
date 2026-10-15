@@ -28,7 +28,7 @@ async fn new_changelog_form(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -64,7 +64,7 @@ async fn create_changelog(
     session: Session,
     Form(form): Form<CreateChangelogForm>,
 ) -> Result<Response, AppError> {
-    if !is_admin(&session, &state.db, current_org.id).await? {
+    if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
@@ -84,7 +84,7 @@ async fn create_changelog(
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
             HtmlTemplate(ChangelogFormTemplate {
-                layout: Layout::load(&state.db,&current_org, &session).await?,
+                layout: Layout::load(&state.db, &current_org, &session).await?,
                 title,
                 description,
                 title_error,
@@ -105,11 +105,11 @@ async fn create_changelog(
 
     let path = format!("/changelogs/{}", id);
 
-    if let Some(email_client) = state.email_client {
+    if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
         let changelog_title = title;
         let changelog_body = description;
-        let changelog_url = current_org.path(path.clone());
-        let changelog_url = format!("{}{}", email_client.public_url, changelog_url);
+        let changelog_url = current_org.path(&path);
+        let changelog_url = format!("{}{}", public_url, changelog_url);
 
         notify_changelog_created(
             &state.db,
@@ -124,7 +124,7 @@ async fn create_changelog(
         .await?;
     }
 
-    Ok(current_org.redirect(path).into_response())
+    Ok(current_org.redirect(&path).into_response())
 }
 #[derive(Template)]
 #[template(path = "pages/changelog_list.html")]
@@ -139,7 +139,7 @@ async fn list_changelogs(
     current_org: CurrentOrg,
     session: Session,
 ) -> Result<Response, AppError> {
-    let is_admin = is_admin(&session, &state.db, current_org.id).await?;
+    let is_admin = is_admin(&state.db, &session, current_org.id).await?;
 
     let sql = r#"
         SELECT id, org_id, title, description, created_at
@@ -154,7 +154,7 @@ async fn list_changelogs(
         .await?;
 
     Ok(HtmlTemplate(ChangelogListTemplate {
-        layout: Layout::load(&state.db,&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         is_admin,
         changelogs,
     })
@@ -196,7 +196,7 @@ async fn changelog_detail(
     };
 
     Ok(HtmlTemplate(ChangelogDetailTemplate {
-        layout: Layout::load(&state.db,&current_org, &session).await?,
+        layout: Layout::load(&state.db, &current_org, &session).await?,
         changelog,
     })
     .into_response())

@@ -59,5 +59,5 @@ async fn login_form(
 
 async fn logout(session: Session, current_org: CurrentOrg) -> Result<Response, AppError> {
     session.remove::<i64>("user_id").await?;
-    Ok(current_org.redirect(String::new()).into_response())
+    Ok(current_org.redirect("").into_response())
 }

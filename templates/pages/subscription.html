@@ -1,0 +1,30 @@
+{% extends "pages/base.html" %}
+
+{% block title %}Subscription{% endblock %}
+
+{% block content %}
+<p><a class="back-link" href="/{{ layout.org_slug }}/">&larr; Back to ideas</a></p>
+
+<div class="idea-detail-card">
+    <div class="idea-main">
+        <h1>Subscription</h1>
+        {% match subscription %}
+            {% when SubscriptionView::Active(subscription) %}
+                <p class="idea-description">{{ subscription.status }}</p>
+                <div class="idea-meta">
+                    <time>{{ subscription.created_date() }}</time>
+                </div>
+                <form method="post" action="/{{ layout.org_slug }}/subscriptions/portal">
+                    <button type="submit">Manage subscription</button>
+                </form>
+            {% when SubscriptionView::CanSubscribe(idempotency_key) %}
+                <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                    <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+                    <button type="submit">Subscribe</button>
+                </form>
+            {% when SubscriptionView::NotConfigured %}
+                <p>Billing is not configured for this instance.</p>
+        {% endmatch %}
+    </div>
+</div>
+{% endblock %}

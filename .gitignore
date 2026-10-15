@@ -1,5 +1,6 @@
-.idea
-.notes
+/.idea
+/.claude
+/.notes
 /target
 *.db
 *.db-shm
