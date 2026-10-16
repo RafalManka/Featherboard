@@ -4,20 +4,40 @@
     --border: #e4e4e6;
     --bg-subtle: #f5f7fb;
     --accent: #51459e;
-    --accent-hover: #4c2eba;
-    --accent-tint: #eeeafa;
+    /* Derived from --accent rather than a fixed color, so a per-org
+       accent_color override (see base.html) darkens correctly on hover
+       too, instead of every hover state falling back to this default
+       purple regardless of the org's actual accent. */
+    --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+    /* Same bug/fix as --accent-hover above: was a fixed pastel purple
+       that ignored per-org accent_color, so hover/active backgrounds
+       stayed purple-tinted under e.g. a green org while the text on top
+       of them correctly went green. */
+    --accent-tint: color-mix(in srgb, var(--accent) 12%, white);
     --accent-contrast: #ffffff;
+
+    /* Shared corner radius for every rectangular surface that isn't a
+       pill (idea-card, sidebar-card, sidebar-cta, sidebar-filters rows,
+       cta-outline). True pills (.submit-idea-cta, .status-pill, the sort
+       toggle) stay at 999px — their own separate, already-consistent
+       tier — this token is only for the non-pill tier. */
+    --radius-card: 0.75rem;
 
     --status-open-bg: #f5f7fb;
     --status-open-fg: #8f8f9a;
+    --status-open-dot: #b7b7c2;
     --status-planned-bg: #dff7fa;
     --status-planned-fg: #128a98;
+    --status-planned-dot: #1fb8c9;
     --status-in-progress-bg: #fee7cf;
     --status-in-progress-fg: #da9a4b;
+    --status-in-progress-dot: #f0a93f;
     --status-done-bg: #dcf5f0;
     --status-done-fg: #18ad96;
+    --status-done-dot: #1fcdae;
     --status-declined-bg: #fbe4db;
     --status-declined-fg: #cc5f32;
+    --status-declined-dot: #e2764a;
 }
 
 * {
@@ -99,40 +119,42 @@ a {
     margin-bottom: 0.5rem;
 }
 
+/* Subtle-filled treatment: soft neutral background, no accent color, so
+   it reads as a clear button without competing with the sidebar's "Add
+   feedback" (the only accent-colored button on the page). */
 .cta-outline {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.5rem 1.05rem;
-    background: #fff;
-    color: var(--accent);
-    border: 1.5px solid var(--accent);
-    border-radius: 999px;
+    padding: 0.32rem 0.95rem;
+    background: var(--bg-subtle);
+    color: var(--text);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-card);
     font-weight: 600;
     font-size: 0.9rem;
+    line-height: 1.4;
     text-decoration: none;
 }
 
 .cta-outline:hover {
-    background: var(--accent);
-    color: #fff;
+    background: var(--border);
 }
 
-/* Submit CTA: full-width solid button */
+/* Submit CTA: compact pill */
 .submit-idea-cta {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1.25rem;
+    gap: 0.4rem;
+    padding: 0.4rem 1rem;
     background: var(--accent);
     color: var(--accent-contrast);
-    border-radius: 0.6rem;
+    border-radius: 999px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
     text-decoration: none;
+    white-space: nowrap;
 }
 
 .submit-idea-cta:hover {
@@ -141,13 +163,33 @@ a {
 
 /* Status pill, shared by list/detail/roadmap */
 .status-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.15rem 0.6rem;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* Small colored circle so status reads by color/shape alone, not just
+   the pill's background tint (subtle, reads similarly across statuses
+   at a glance). Used inside .status-pill and in the sidebar filter
+   list. */
+.status-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot.status-open { background: var(--status-open-dot); }
+.status-dot.status-planned { background: var(--status-planned-dot); }
+.status-dot.status-in-progress { background: var(--status-in-progress-dot); }
+.status-dot.status-done { background: var(--status-done-dot); }
+.status-dot.status-declined { background: var(--status-declined-dot); }
 
 .status-open {
     background: var(--status-open-bg);
@@ -174,17 +216,9 @@ a {
     color: var(--status-declined-fg);
 }
 
-/* Filter/sort row on the board page: two joined segmented controls */
-.filter-bar {
-    display: flex;
-    align-items: stretch;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.filters,
+/* Sort toggle, next to the board heading. Status filtering lives in the
+   sidebar (.sidebar-filters) instead of a second segmented control here
+   — see .board-layout below. */
 .sort {
     display: inline-flex;
     flex-wrap: nowrap;
@@ -197,12 +231,10 @@ a {
     scrollbar-width: none;
 }
 
-.filters::-webkit-scrollbar,
 .sort::-webkit-scrollbar {
     display: none;
 }
 
-.filters a,
 .sort a {
     padding: 0.4rem 0.85rem;
     border-radius: 999px;
@@ -213,33 +245,36 @@ a {
     white-space: nowrap;
 }
 
-.filters a.active,
 .sort a.active {
     background: var(--accent);
     color: var(--accent-contrast);
     font-weight: 600;
 }
 
-/* Vote button, reused on board list, detail page, and vote partial swaps */
+/* Vote button, reused on board list, detail page, and vote partial swaps.
+   Stays on the left edge (the real htmx swap target) rather than
+   UserJot's right-aligned chip — moving it would mean relocating that
+   swap target, a structural change left for a future pass. */
 .vote-btn {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 3rem;
-    height: 3rem;
+    gap: 0.1rem;
+    width: 2.75rem;
+    height: 3.25rem;
     padding: 0;
-    border: none;
-    border-radius: 0.7rem;
-    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: #fff;
     color: var(--muted);
     cursor: pointer;
     font: inherit;
 }
 
 .vote-btn:hover {
-    background: var(--accent-tint);
+    border-color: var(--accent);
     color: var(--accent);
 }
 
@@ -256,6 +291,7 @@ a {
 
 .vote-btn.voted {
     background: var(--accent);
+    border-color: var(--accent);
     color: var(--accent-contrast);
 }
 
@@ -275,7 +311,13 @@ a {
     padding: 0.9rem;
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.idea-card:hover {
+    border-color: var(--accent-tint);
+    box-shadow: 0 2px 10px rgba(17, 20, 44, 0.06);
 }
 
 .idea-main {
@@ -308,6 +350,145 @@ a {
     gap: 0.6rem;
     font-size: 0.8rem;
     color: var(--muted);
+}
+
+.comment-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.comment-count svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+/* ===== Two-column board layout =====
+   UserJot's sidebar holds a CTA + a "Boards" switcher. Featherboard has
+   no multi-board concept — one org, one board — so the sidebar instead
+   repurposes that slot for status filtering, the one real navigational
+   axis this app actually has. */
+.board-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+    margin-top: 1.25rem;
+}
+
+.board-main {
+    min-width: 0;
+}
+
+.board-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 1rem;
+}
+
+.board-head h1 {
+    margin: 0;
+}
+
+.sidebar {
+    position: sticky;
+    top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sidebar-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1rem;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-radius: var(--radius-card);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+
+.sidebar-cta:hover {
+    background: var(--accent-hover);
+}
+
+.sidebar-cta svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.sidebar-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 0.5rem;
+    background: #fff;
+}
+
+.sidebar-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    padding: 0.35rem 0.6rem 0.5rem;
+}
+
+.sidebar-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.sidebar-filters a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-card);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.sidebar-filters a:hover {
+    background: var(--bg-subtle);
+}
+
+.sidebar-filters a.active {
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.sidebar-filters .count {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.sidebar-filters a.active .count {
+    color: var(--accent);
+}
+
+/* Below this width the sidebar drops above the list as a normal block
+   instead of sitting beside it — a 280px rail has no room left once the
+   main column would otherwise be squeezed under ~400px. */
+@media (max-width: 52rem) {
+    .board-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+    }
 }
 
 /* Idea detail */

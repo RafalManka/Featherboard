@@ -14,7 +14,7 @@ use axum::routing::{get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tower_sessions::Session;
 
 pub fn ideas_router() -> Router<AppState> {
@@ -36,6 +36,7 @@ struct IdeaRow {
     status: String,
     created_at: String,
     vote_count: i64,
+    comment_count: i64,
     changelog_id: Option<i64>,
 }
 
@@ -56,6 +57,7 @@ impl IdeaRow {
 struct IdeaListItem {
     idea: Idea,
     vote_count: i64,
+    comment_count: i64,
     voted: bool,
 }
 
@@ -73,6 +75,11 @@ async fn voted_idea_ids(state: &AppState, session: &Session) -> Result<HashSet<i
     Ok(ids.into_iter().collect())
 }
 
+struct StatusCount {
+    status: IdeaStatus,
+    count: i64,
+}
+
 #[derive(Template)]
 #[template(path = "pages/idea_list.html")]
 pub struct IdeaListTemplate {
@@ -80,7 +87,8 @@ pub struct IdeaListTemplate {
     ideas: Vec<IdeaListItem>,
     current_status: String,
     current_sort: String,
-    all_statuses: [IdeaStatus; 5],
+    status_counts: Vec<StatusCount>,
+    total_count: i64,
 }
 
 #[derive(Deserialize)]
@@ -115,7 +123,8 @@ pub async fn list_ideas(
                 i.status,
                 i.created_at,
                 i.changelog_id,
-                COUNT(v.id) AS vote_count
+                COUNT(v.id) AS vote_count,
+                (SELECT COUNT(*) FROM comments c WHERE c.idea_id = i.id) AS comment_count
             FROM ideas i
                 LEFT JOIN votes v ON v.idea_id = i.id
             WHERE i.org_id = ?
@@ -138,13 +147,33 @@ pub async fn list_ideas(
         .map(|row| {
             let voted = voted_ids.contains(&row.id);
             let vote_count = row.vote_count;
+            let comment_count = row.comment_count;
             IdeaListItem {
                 idea: row.into_idea(),
                 vote_count,
+                comment_count,
                 voted,
             }
         })
         .collect();
+
+    // A separate, unfiltered query: the sidebar needs every status's count
+    // at once regardless of which status the list above is filtered to, so
+    // it can't reuse the filtered rows above.
+    let status_count_rows: Vec<(String, i64)> =
+        sqlx::query_as("SELECT status, COUNT(*) FROM ideas WHERE org_id = ? GROUP BY status")
+            .bind(current_org.id)
+            .fetch_all(&state.db)
+            .await?;
+    let counts_by_status: HashMap<String, i64> = status_count_rows.into_iter().collect();
+    let status_counts: Vec<StatusCount> = IdeaStatus::ALL
+        .into_iter()
+        .map(|status| StatusCount {
+            status,
+            count: *counts_by_status.get(status.as_str()).unwrap_or(&0),
+        })
+        .collect();
+    let total_count: i64 = status_counts.iter().map(|sc| sc.count).sum();
 
     Ok(HtmlTemplate(IdeaListTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
@@ -154,7 +183,8 @@ pub async fn list_ideas(
             .unwrap_or("")
             .to_string(),
         current_sort: if is_top_sort { "top" } else { "new" }.to_string(),
-        all_statuses: IdeaStatus::ALL,
+        status_counts,
+        total_count,
     }))
 }
 
@@ -179,7 +209,8 @@ pub async fn roadmap(
             i.status,
             i.created_at,
             i.changelog_id,
-            COUNT(v.id) AS vote_count
+            COUNT(v.id) AS vote_count,
+            (SELECT COUNT(*) FROM comments c WHERE c.idea_id = i.id) AS comment_count
         FROM ideas i
             LEFT JOIN votes v ON v.idea_id = i.id
         WHERE i.org_id = ?
@@ -204,9 +235,11 @@ pub async fn roadmap(
         };
         let voted = voted_ids.contains(&row.id);
         let vote_count = row.vote_count;
+        let comment_count = row.comment_count;
         let item = IdeaListItem {
             idea: row.into_idea(),
             vote_count,
+            comment_count,
             voted,
         };
         if let Some((_, items)) = groups.iter_mut().find(|(s, _)| *s == status) {
@@ -260,7 +293,8 @@ async fn idea_detail(
             i.status,
             i.created_at,
             i.changelog_id,
-            COUNT(v.id) AS vote_count
+            COUNT(v.id) AS vote_count,
+            (SELECT COUNT(*) FROM comments c WHERE c.idea_id = i.id) AS comment_count
         FROM ideas i
             LEFT JOIN votes v ON v.idea_id = i.id
         WHERE i.id = ? AND i.org_id = ?
@@ -278,9 +312,11 @@ async fn idea_detail(
 
     let voted = voted_idea_ids(&state, &session).await?.contains(&row.id);
     let vote_count = row.vote_count;
+    let comment_count = row.comment_count;
     let item = IdeaListItem {
         idea: row.into_idea(),
         vote_count,
+        comment_count,
         voted,
     };
     let comments = comments::comments_for_idea(&state, id.id).await?;
@@ -423,7 +459,8 @@ async fn vote(
             i.status,
             i.created_at,
             i.changelog_id,
-            COUNT(v.id) AS vote_count
+            COUNT(v.id) AS vote_count,
+            (SELECT COUNT(*) FROM comments c WHERE c.idea_id = i.id) AS comment_count
       FROM ideas i
             LEFT JOIN votes v ON v.idea_id = i.id
       WHERE i.id = ? and i.org_id = ?
@@ -441,9 +478,11 @@ async fn vote(
     };
 
     let vote_count = row.vote_count;
+    let comment_count = row.comment_count;
     let item = IdeaListItem {
         idea: row.into_idea(),
         vote_count,
+        comment_count,
         voted,
     };
 
