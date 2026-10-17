@@ -1,101 +1,140 @@
 {% extends "pages/base.html" %}
 
+{% block body_class %}wide{% endblock %}
 {% block title %}{{ item.idea.title }}{% endblock %}
 
 {% block content %}
 <p><a class="back-link" href="/{{ layout.org_slug }}">&larr; Back to ideas</a></p>
 
-<div class="idea-detail-card">
-    {% include "htmx/vote_button.html" %}
-    <div class="idea-main">
-        <h1>{{ item.idea.title }}</h1>
-        {% if is_admin %}
-        <form class="status-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/status">
-            <select name="status">
-                {% for s in all_statuses %}
-                <option value="{{ s.as_str() }}" {% if s.as_str()== item.idea.status %}selected{% endif %}>{{ s.label()
-                    }}
-                </option>
+<div class="page-layout">
+    <div class="page-main">
+        <div class="idea-detail-card">
+            {% include "htmx/vote_button.html" %}
+            <div class="idea-main">
+                <h1>{{ item.idea.title }}</h1>
+                {% if !is_admin %}
+                <span class="status-pill {{ item.idea.status_class() }}"><span class="status-dot {{ item.idea.status_class() }}"></span> {{ item.idea.status_label() }}</span>
+                {% endif %}
+                <p class="idea-description">{{ item.idea.description }}</p>
+            </div>
+        </div>
+
+        <h2>Comments <span style="color: var(--muted); font-weight: 400;">({{ comments.len() }})</span></h2>
+        {% if comment_error %}<p class="error">Please provide your name and a comment.</p>{% endif %}
+
+        <div class="comment-thread">
+            {% for c in comments %}
+            <article class="comment-card" id="comment-{{ c.comment.id }}">
+                <div class="comment-header">
+                    <span class="comment-author">{{ c.comment.author_name }}</span>
+                    <span class="comment-date">{{ c.comment.created_date() }}</span>
+                </div>
+                <p class="comment-body">{{ c.comment.body }}</p>
+                <details>
+                    <summary class="comment-reply-toggle">Reply</summary>
+                    <form class="idea-form reply-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
+                        <input type="hidden" name="parent_comment_id" value="{{ c.comment.id }}">
+                        {% if let Some(author_name) = author_name %}
+                            <input type="text" name="author_name" readonly tabindex="-1" value="{{ author_name }}">
+                        {% else %}
+                            <input type="text" name="author_name" placeholder="Your name">
+                        {% endif %}
+                        <textarea name="body" placeholder="Reply"></textarea>
+                        <button type="submit">Reply</button>
+                    </form>
+                </details>
+
+                {% for r in c.replies %}
+                <article class="comment-card">
+                    <div class="comment-header">
+                        <span class="comment-author">{{ r.author_name }}</span>
+                        <span class="comment-date">{{ r.created_date() }}</span>
+                    </div>
+                    <p class="comment-body">{{ r.body }}</p>
+                </article>
                 {% endfor %}
-            </select>
-            <button type="submit">Update status</button>
+            </article>
+            {% endfor %}
+        </div>
+
+        <h3>Add a comment</h3>
+        <form class="idea-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
+            <div>
+                <label for="author_name">Name</label>
+                {% if let Some(author_name) = author_name %}
+                    <input type="text" name="author_name" readonly tabindex="-1" value="{{ author_name }}">
+                {% else %}
+                    <input type="text" id="author_name" name="author_name">
+                {% endif %}
+            </div>
+            <div>
+                <label for="body">Comment</label>
+                <textarea id="body" name="body" rows="4"></textarea>
+            </div>
+            <button type="submit">Comment</button>
         </form>
-
-        <form class="status-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/changelog">
-            <select name="changelog_id">
-                <option value="" {% if item.idea.changelog_id.is_none() %}selected{% endif %}>None</option>
-                {% for c in all_changelogs %}
-                <option value="{{ c.id }}" {% if c.identifier()== item.idea.changelog_id %}selected{% endif %}>{{
-                    c.title }}
-                </option>
-                {% endfor %}
-            </select>
-            <button type="submit">Update status</button>
-        </form>
-
-        <form class="status-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/merge">
-            <select name="canonical_idea_id">
-                {% for i in all_ideas %}
-                <option value="{{ i.id }}">{{
-                    i.title }}
-                </option>
-                {% endfor %}
-            </select>
-            <button type="submit">Merge ideas</button>
-        </form>
-
-        <button hx-delete="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}" type="submit">Delete</button>
-
-        {% else %}
-        <span class="status-pill {{ item.idea.status_class() }}">{{ item.idea.status_label() }}</span>
-        {% endif %}
-        <p class="idea-description">{{ item.idea.description }}</p>
     </div>
-</div>
 
-<h2>Comments</h2>
-{% if comment_error %}<p class="error">Please provide your name and a comment.</p>{% endif %}
+    <aside class="sidebar">
+        <a class="sidebar-cta" href="/{{ layout.org_slug }}/ideas/new">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
+            Add feedback
+        </a>
 
-{% for c in comments %}
-<article class="comment" id="comment-{{ c.comment.id }}">
-    <p class="comment-author">{{ c.comment.author_name }}</p>
-    <p class="comment-body">{{ c.comment.body }}</p>
-    {% for r in c.replies %}
-    <article class="comment reply">
-        <p class="comment-author">{{ r.author_name }}</p>
-        <p class="comment-body">{{ r.body }}</p>
-    </article>
-    {% endfor %}
-    <details>
-        <summary>Reply</summary>
-        <form class="idea-form reply-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
-            <input type="hidden" name="parent_comment_id" value="{{ c.comment.id }}">
-            {% if let Some(author_name) = author_name %}
-                <input type="text" name="author_name" readonly tabindex="-1" value="{{ author_name }}">
-            {% else %}
-                <input type="text" name="author_name" placeholder="Your name">
+        <div class="sidebar-card">
+            <div class="sidebar-label">Details</div>
+            {% if is_admin %}
+            <form class="detail-field detail-field-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/status">
+                <span class="detail-field-label">Status</span>
+                <select name="status">
+                    {% for s in all_statuses %}
+                    <option value="{{ s.as_str() }}" {% if s.as_str()== item.idea.status %}selected{% endif %}>{{ s.label() }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" aria-label="Update status">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                </button>
+            </form>
             {% endif %}
-            <textarea name="body" placeholder="Reply"></textarea>
-            <button type="submit">Reply</button>
-        </form>
-    </details>
-</article>
-{% endfor %}
+            <div class="detail-field">
+                <span class="detail-field-label">Posted</span>
+                <span class="detail-field-value">{{ item.idea.created_date() }}</span>
+            </div>
+        </div>
 
-<h3>Add a comment</h3>
-<form class="idea-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/comments">
-    <div>
-        <label for="author_name">Name</label>
-        {% if let Some(author_name) = author_name %}
-            <input type="text" name="author_name" readonly tabindex="-1" value="{{ author_name }}">
-        {% else %}
-            <input type="text" id="author_name" name="author_name">
+        {% if is_admin %}
+        <div class="sidebar-card">
+            <div class="sidebar-label">Actions</div>
+            <form class="detail-field detail-field-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/changelog">
+                <span class="detail-field-label">Changelog</span>
+                <select name="changelog_id">
+                    <option value="" {% if item.idea.changelog_id.is_none() %}selected{% endif %}>None</option>
+                    {% for c in all_changelogs %}
+                    <option value="{{ c.id }}" {% if c.identifier()== item.idea.changelog_id %}selected{% endif %}>{{ c.title }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" aria-label="Assign changelog">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                </button>
+            </form>
+            <form class="detail-field detail-field-form" method="post" action="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}/merge">
+                <span class="detail-field-label">Merge into</span>
+                <select name="canonical_idea_id">
+                    {% for i in all_ideas %}
+                    <option value="{{ i.id }}">{{ i.title }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" aria-label="Merge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                </button>
+            </form>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="sidebar-label">Danger Zone</div>
+            <button hx-delete="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}" type="submit" class="detail-danger">Delete idea</button>
+        </div>
         {% endif %}
-    </div>
-    <div>
-        <label for="body">Comment</label>
-        <textarea id="body" name="body" rows="4"></textarea>
-    </div>
-    <button type="submit">Comment</button>
-</form>
+    </aside>
+</div>
 {% endblock %}

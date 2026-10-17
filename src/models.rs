@@ -190,3 +190,9 @@ pub struct Comment {
     pub body: String,
     pub created_at: String,
 }
+
+impl Comment {
+    pub fn created_date(&self) -> &str {
+        self.created_at.get(..10).unwrap_or(&self.created_at)
+    }
+}

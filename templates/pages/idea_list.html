@@ -4,8 +4,8 @@
 {% block title %}Ideas{% endblock %}
 
 {% block content %}
-<div class="board-layout">
-    <div class="board-main">
+<div class="page-layout">
+    <div class="page-main">
         <div class="board-head">
             <h1>Ideas</h1>
             <nav class="sort">
@@ -16,6 +16,16 @@
             </nav>
         </div>
 
+        {% if ideas.is_empty() %}
+        <div class="empty-state">
+            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
+            {% if current_status == "" %}
+            <p>No ideas yet. Be the first to share feedback!</p>
+            {% else %}
+            <p>No ideas with this status yet.</p>
+            {% endif %}
+        </div>
+        {% else %}
         <ul class="idea-list">
             {% for item in ideas %}
             <li class="idea-card">
@@ -35,6 +45,7 @@
             </li>
             {% endfor %}
         </ul>
+        {% endif %}
     </div>
 
     <aside class="sidebar">
