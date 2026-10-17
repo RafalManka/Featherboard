@@ -18,10 +18,18 @@
 
     /* Shared corner radius for every rectangular surface that isn't a
        pill (idea-card, sidebar-card, sidebar-cta, sidebar-filters rows,
-       cta-outline). True pills (.submit-idea-cta, .status-pill, the sort
-       toggle) stay at 999px — their own separate, already-consistent
-       tier — this token is only for the non-pill tier. */
+       cta-outline). True pills (.status-pill, the sort toggle) stay at
+       999px — their own separate, already-consistent tier — this token
+       is only for the non-pill tier. */
     --radius-card: 0.75rem;
+
+    /* Sidebar column width — also used to give .sidebar-cta an explicit
+       width when it's used outside a sidebar (e.g. inline in
+       .page-head-actions on the changelog list), so the button renders
+       at the same size there as it does stretched to fill the sidebar
+       on the board/idea-detail pages, instead of shrinking to its own
+       content width and visibly resizing when navigating between pages. */
+    --sidebar-width: 280px;
 
     --status-open-bg: #f5f7fb;
     --status-open-fg: #8f8f9a;
@@ -220,25 +228,6 @@ a {
     background: var(--border);
 }
 
-/* Submit CTA: compact pill */
-.submit-idea-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 1rem;
-    background: var(--accent);
-    color: var(--accent-contrast);
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.submit-idea-cta:hover {
-    background: var(--accent-hover);
-}
 
 /* Status pill, shared by list/detail/roadmap */
 .status-pill {
@@ -480,7 +469,7 @@ a {
    axis this app actually has. */
 .page-layout {
     display: grid;
-    grid-template-columns: 1fr 280px;
+    grid-template-columns: 1fr var(--sidebar-width);
     gap: 2rem;
     align-items: start;
     margin-top: 1.25rem;
@@ -490,16 +479,31 @@ a {
     min-width: 0;
 }
 
-.board-head {
+/* Default top margin for standalone usage (changelog_list.html, no
+   sidebar). Inside .page-layout, the top margin lives on the grid
+   container instead — shared by both .page-main and .sidebar — so it's
+   zeroed out there specifically (real specificity, not source order:
+   two classes beats one) to avoid doubling up. */
+.page-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin: 0 0 1rem;
+    margin: 1.25rem 0 1rem;
 }
 
-.board-head h1 {
+.page-layout .page-head {
+    margin-top: 0;
+}
+
+.page-head h1 {
     margin: 0;
+}
+
+.page-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .sidebar {
@@ -510,10 +514,18 @@ a {
     gap: 1rem;
 }
 
+/* Explicit width (--sidebar-width) rather than relying on the sidebar's
+   flex-stretch to size it: in the sidebar that stretch already produces
+   280px, but this class is also used inline in .page-head-actions on
+   the changelog list, where there's no sidebar column to stretch to —
+   without an explicit width it would just shrink to its own content
+   size there instead of matching. */
 .sidebar-cta {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: var(--sidebar-width);
+    flex-shrink: 0;
     gap: 0.45rem;
     padding: 0.65rem 1rem;
     background: var(--accent);
@@ -526,6 +538,20 @@ a {
 
 .sidebar-cta:hover {
     background: var(--accent-hover);
+}
+
+/* .outline modifier: same size/shape/icon as .sidebar-cta (compound
+   class, real specificity — not fighting source order), but subtle-
+   filled instead of solid-accent, so a secondary action like "Submit a
+   changelog" doesn't read as the same primary action as "Add feedback"
+   elsewhere just because it's the same size. */
+.sidebar-cta.outline {
+    background: var(--bg-subtle);
+    color: var(--text);
+}
+
+.sidebar-cta.outline:hover {
+    background: var(--border);
 }
 
 .sidebar-cta svg {
@@ -586,6 +612,43 @@ a {
 
 .sidebar-filters a.active .count {
     color: var(--accent);
+}
+
+/* "Shipped ideas" sidebar card on the changelog-detail page — surfaces
+   the ideas.changelog_id link (Phase 3) that's existed since the
+   changelog feature shipped but was never actually displayed anywhere.
+   Row styling matches .sidebar-filters, same "list of links in a
+   sidebar card" idiom. */
+.sidebar-shipped-ideas {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.sidebar-shipped-ideas a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-card);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.sidebar-shipped-ideas a:hover {
+    background: var(--bg-subtle);
+    color: var(--accent);
+}
+
+/* Standalone, not nested under .sidebar-shipped-ideas — it's a sibling
+   shown instead of that list, not a row inside it. */
+.sidebar-empty {
+    margin: 0;
+    padding: 0.35rem 0.6rem 0.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
 }
 
 /* Below this width the sidebar drops above the list as a normal block
@@ -657,8 +720,8 @@ a {
     margin-top: 0.5rem;
 }
 
-/* True pill — same tier as .submit-idea-cta/.status-pill/the sort toggle,
-   not part of the --radius-card unification. */
+/* True pill — same tier as .status-pill/the sort toggle, not part of
+   the --radius-card unification. */
 button[type="submit"] {
     padding: 0.5rem 1rem;
     border: none;

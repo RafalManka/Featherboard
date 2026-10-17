@@ -1,17 +1,44 @@
 {% extends "pages/base.html" %}
 
+{% block body_class %}wide{% endblock %}
 {% block title %}{{ changelog.title }}{% endblock %}
 
 {% block content %}
 <p><a class="back-link" href="/{{ layout.org_slug }}/changelogs">&larr; Back to changelogs</a></p>
 
-<div class="idea-detail-card">
-    <div class="idea-main">
-        <h1>{{ changelog.title }}</h1>
-        <p class="idea-description">{{ changelog.description }}</p>
-        <div class="idea-meta">
-            <time>{{ changelog.created_date() }}</time>
+<div class="page-layout">
+    <div class="page-main">
+        <div class="idea-detail-card">
+            <div class="idea-main">
+                <h1>{{ changelog.title }}</h1>
+                <p class="idea-description">{{ changelog.description }}</p>
+                <div class="idea-meta">
+                    <time>{{ changelog.created_date() }}</time>
+                </div>
+            </div>
         </div>
     </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-card">
+            <div class="sidebar-label">Shipped ideas</div>
+            {% if shipped_ideas.is_empty() %}
+            <p class="sidebar-empty">No ideas linked to this entry yet.</p>
+            {% else %}
+            <nav class="sidebar-shipped-ideas">
+                {% for idea in shipped_ideas %}
+                <a href="/{{ layout.org_slug }}/ideas/{{ idea.id }}">{{ idea.title }}</a>
+                {% endfor %}
+            </nav>
+            {% endif %}
+        </div>
+
+        {% if is_admin %}
+        <div class="sidebar-card">
+            <div class="sidebar-label">Danger Zone</div>
+            <button hx-delete="/{{ layout.org_slug }}/changelogs/{{ changelog.id }}" type="submit" class="detail-danger">Delete changelog</button>
+        </div>
+        {% endif %}
+    </aside>
 </div>
 {% endblock %}
