@@ -137,6 +137,11 @@ impl IdeaStatus {
         Self::Declined,
     ];
 
+    /// Statuses shown on the public roadmap — "what's coming", not the
+    /// raw inbox (Open) or rejected items (Declined). Those stay visible
+    /// via the board page's status filter, just not here.
+    pub const ROADMAP: [IdeaStatus; 3] = [Self::Planned, Self::InProgress, Self::Done];
+
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "open" => Some(Self::Open),

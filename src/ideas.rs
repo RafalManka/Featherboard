@@ -224,7 +224,7 @@ pub async fn roadmap(
         .await?;
 
     let voted_ids = voted_idea_ids(&state, &session).await?;
-    let mut groups: Vec<(IdeaStatus, Vec<IdeaListItem>)> = IdeaStatus::ALL
+    let mut groups: Vec<(IdeaStatus, Vec<IdeaListItem>)> = IdeaStatus::ROADMAP
         .into_iter()
         .map(|s| (s, Vec::new()))
         .collect();

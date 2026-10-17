@@ -916,12 +916,26 @@ button[type="submit"].detail-danger:hover {
 .roadmap-column {
     background: var(--bg-subtle);
     border: none;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
     padding: 0.75rem;
 }
 
-.roadmap-column h2 {
-    margin: 0 0 0.6rem;
+.roadmap-column-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.roadmap-column-header h2 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.roadmap-column-header .count {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.8rem;
 }
 
 .roadmap-column .empty {
@@ -939,11 +953,20 @@ button[type="submit"].detail-danger:hover {
     gap: 0.5rem;
 }
 
+/* Same radius token as .idea-card, plus the same hover treatment, so
+   roadmap cards feel like the same "card" language as the rest of the
+   app instead of their own smaller, flatter variant. */
 .roadmap-card {
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 0.6rem;
+    border-radius: var(--radius-card);
     padding: 0.5rem 0.6rem;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.roadmap-card:hover {
+    border-color: var(--accent-tint);
+    box-shadow: 0 2px 10px rgba(17, 20, 44, 0.06);
 }
 
 .roadmap-card a {
