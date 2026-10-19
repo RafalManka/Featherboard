@@ -651,6 +651,101 @@ a {
     font-size: 0.85rem;
 }
 
+/* Admin settings layout: a compact Fider-style navigation rail beside the
+   currently selected settings panel. */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 10rem minmax(0, 1fr);
+    gap: 3rem;
+    margin-top: 2rem;
+}
+
+.settings-sidebar {
+    position: sticky;
+    top: 1.25rem;
+    align-self: start;
+}
+
+.settings-eyebrow {
+    margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.settings-nav a {
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.5rem;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.settings-nav a:hover {
+    background: var(--bg-subtle);
+}
+
+.settings-nav a.active {
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.settings-main {
+    min-width: 0;
+}
+
+.settings-main h1 {
+    margin-bottom: 0.25rem;
+}
+
+.settings-intro {
+    margin: 0 0 1.5rem;
+    color: var(--muted);
+}
+
+.settings-card {
+    max-width: 42rem;
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+}
+
+.settings-card h2 {
+    margin: 0 0 1rem;
+}
+
+.settings-status {
+    margin: 0 0 1rem;
+}
+
+.settings-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+
+.settings-meta span {
+    color: var(--muted);
+}
+
+.settings-card form {
+    margin-top: 1rem;
+}
+
 /* Below this width the sidebar drops above the list as a normal block
    instead of sitting beside it — a 280px rail has no room left once the
    main column would otherwise be squeezed under ~400px. */
@@ -661,6 +756,21 @@ a {
 
     .sidebar {
         position: static;
+    }
+
+    .settings-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-top: 1.25rem;
+    }
+
+    .settings-sidebar {
+        position: static;
+    }
+
+    .settings-nav {
+        flex-direction: row;
+        overflow-x: auto;
     }
 }
 
@@ -990,6 +1100,20 @@ button[type="submit"].detail-danger:hover {
 @media (max-width: 30rem) {
     body {
         max-width: 100%;
+    }
+
+    /* .sidebar-cta's fixed --sidebar-width (280px) is wider than the
+       viewport itself below this breakpoint — without this, "Submit a
+       changelog" on the single-column changelog list (the only page that
+       puts .sidebar-cta inline in .page-head rather than in .sidebar)
+       overflows off the right edge instead of wrapping. */
+    .page-head {
+        flex-wrap: wrap;
+    }
+
+    .page-head-actions,
+    .page-head-actions .sidebar-cta {
+        width: 100%;
     }
 }
 

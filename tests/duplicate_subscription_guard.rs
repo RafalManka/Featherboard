@@ -59,7 +59,12 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
     session.save().await.unwrap();
     let session_id = session.id().unwrap().to_string();
 
-    let app = app_router(db, session_layer, None, Some("http://localhost:3000".to_string()));
+    let app = app_router(
+        db,
+        session_layer,
+        None,
+        Some("http://localhost:3000".to_string()),
+    );
 
     let request = axum::http::Request::builder()
         .uri("/default/subscriptions/checkout")
@@ -75,6 +80,11 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
     let response = app.oneshot(request).await.unwrap();
 
     assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
-    assert_eq!(location, "/default/subscriptions");
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert_eq!(location, "/default/settings");
 }

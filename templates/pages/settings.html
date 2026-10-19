@@ -1,0 +1,42 @@
+{% extends "pages/base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block body_class %}wide{% endblock %}
+
+{% block content %}
+<div class="settings-layout">
+    {% include "htmx/settings_nav.html" %}
+
+    <main class="settings-main">
+        <h1>Billing</h1>
+        <p class="settings-intro">Manage your Featherboard subscription.</p>
+
+        <section id="billing" class="settings-card">
+            <h2>Subscription</h2>
+            {% match subscription %}
+            {% when SubscriptionView::Active(subscription) %}
+            <p class="settings-status">Your subscription is active.</p>
+            <div class="settings-meta">
+                <span>Status</span>
+                <strong>{{ subscription.status }}</strong>
+            </div>
+            <div class="settings-meta">
+                <span>Started</span>
+                <time>{{ subscription.created_date() }}</time>
+            </div>
+            <form method="post" action="/{{ layout.org_slug }}/subscriptions/portal" target="_blank" rel="noopener">
+                <button type="submit">Manage subscription ↗</button>
+            </form>
+            {% when SubscriptionView::CanSubscribe(idempotency_key) %}
+            <p class="settings-status">Your workspace is not subscribed yet.</p>
+            <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+                <button type="submit">Subscribe</button>
+            </form>
+            {% when SubscriptionView::NotConfigured %}
+            <p class="settings-status">Billing is not configured for this instance.</p>
+            {% endmatch %}
+        </section>
+    </main>
+</div>
+{% endblock %}
