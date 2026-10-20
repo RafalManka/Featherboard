@@ -694,7 +694,23 @@ a {
     background: var(--bg-subtle);
 }
 
-.settings-nav a.active {
+/* Active section highlighting, driven entirely by the URL's #hash via
+   :target rather than a class in the markup — a class would need a
+   round-trip (JS scroll-spy, or a server-rendered guess at which anchor
+   the browser landed on) just to stay in sync with where the page
+   actually scrolled to; :target already knows. :has() lets a link react
+   to *another* element (its section) being the target, since :target
+   only applies to the element it matches, not anything that links to it.
+   Billing is the implied default section, active both when nothing is
+   targeted yet (plain /settings) and when it's explicitly #billing;
+   every other section is active only when explicitly targeted. No
+   "turn it off" rule needed anywhere — a link simply falls back to
+   .settings-nav a's plain style the moment none of these match. Adding
+   a third section costs exactly one more comma-separated line here,
+   nothing else. */
+body:not(:has(:target)) .settings-nav a[href="#billing"],
+body:has(#billing:target) .settings-nav a[href="#billing"],
+body:has(#branding:target) .settings-nav a[href="#branding"] {
     background: var(--accent-tint);
     color: var(--accent);
     font-weight: 600;
@@ -719,6 +735,7 @@ a {
     background: #fff;
     border: 1px solid var(--border);
     border-radius: var(--radius-card);
+    margin-bottom: 6px;
 }
 
 .settings-card h2 {
@@ -744,6 +761,39 @@ a {
 
 .settings-card form {
     margin-top: 1rem;
+}
+
+/* Same visual language as .idea-form's inputs (submit-idea/comment
+   forms) — unstyled here until the branding form added real text
+   inputs; billing's form only ever had a bare submit button, which
+   button[type="submit"] already styles globally. The branding form
+   wraps each input's text label directly in <label> (no separate
+   <div>), so the label itself is the block-level spacing unit. */
+.settings-card form label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.settings-card form input[type="text"] {
+    display: block;
+    width: 100%;
+    max-width: 24rem;
+    margin-top: 0.3rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    font: inherit;
+    font-weight: 400;
+    background: var(--bg-subtle);
+}
+
+.settings-card form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 /* Below this width the sidebar drops above the list as a normal block

@@ -37,6 +37,21 @@
             <p class="settings-status">Billing is not configured for this instance.</p>
             {% endmatch %}
         </section>
+
+        <section id="branding" class="settings-card">
+            <h2>Branding</h2>
+            <form method="post" action="/{{ layout.org_slug }}/settings/branding">
+                <label>
+                    Accent color
+                    <input type="text" name="accent_color" value="{{ layout.accent_color.as_deref().unwrap_or("") }}">
+                </label>
+                <label>
+                    Logo URL
+                    <input type="text" name="logo_url" value="{{ layout.logo_url.as_deref().unwrap_or("") }}">
+                </label>
+                <button type="submit">Save</button>
+            </form>
+        </section>
     </main>
 </div>
 {% endblock %}
