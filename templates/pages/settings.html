@@ -5,7 +5,13 @@
 
 {% block content %}
 <div class="settings-layout">
-    {% include "htmx/settings_nav.html" %}
+    <aside class="settings-sidebar">
+        <p class="settings-eyebrow">Settings</p>
+        <nav class="settings-nav" aria-label="Settings sections">
+            <a href="#billing">Billing</a>
+            <a href="#branding">Branding</a>
+        </nav>
+    </aside>
 
     <main class="settings-main">
         <h1>Billing</h1>
