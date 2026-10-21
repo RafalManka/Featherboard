@@ -710,7 +710,8 @@ a {
    nothing else. */
 body:not(:has(:target)) .settings-nav a[href="#billing"],
 body:has(#billing:target) .settings-nav a[href="#billing"],
-body:has(#branding:target) .settings-nav a[href="#branding"] {
+body:has(#branding:target) .settings-nav a[href="#branding"],
+body:has(#github:target) .settings-nav a[href="#github"] {
     background: var(--accent-tint);
     color: var(--accent);
     font-weight: 600;
@@ -776,7 +777,8 @@ body:has(#branding:target) .settings-nav a[href="#branding"] {
     font-weight: 600;
 }
 
-.settings-card form input[type="text"] {
+.settings-card form input[type="text"],
+.settings-card form input[type="password"] {
     display: block;
     width: 100%;
     max-width: 24rem;
@@ -789,7 +791,8 @@ body:has(#branding:target) .settings-nav a[href="#branding"] {
     background: var(--bg-subtle);
 }
 
-.settings-card form input[type="text"]:focus {
+.settings-card form input[type="text"]:focus,
+.settings-card form input[type="password"]:focus {
     outline: none;
     border-color: var(--accent);
     background: #fff;

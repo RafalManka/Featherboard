@@ -10,6 +10,7 @@
         <nav class="settings-nav" aria-label="Settings sections">
             <a href="#billing">Billing</a>
             <a href="#branding">Branding</a>
+            <a href="#github">Github</a>
         </nav>
     </aside>
 
@@ -58,6 +59,22 @@
                 <button type="submit">Save</button>
             </form>
         </section>
+
+        <section id="github" class="settings-card">
+            <h2>Github</h2>
+            <form method="post" action="/{{ layout.org_slug }}/settings/github">
+                <label>
+                    Client ID
+                    <input type="text" name="github_client_id" value="{{ github.github_client_id }}">
+                </label>
+                <label>
+                    Client Secret
+                    <input type="password" name="github_client_secret" value="{{ github.github_client_secret }}">
+                </label>
+                <button type="submit">Save</button>
+            </form>
+        </section>
+
     </main>
 </div>
 {% endblock %}
