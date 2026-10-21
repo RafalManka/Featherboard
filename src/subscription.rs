@@ -3,12 +3,10 @@ use crate::admin::is_admin;
 use crate::error::AppError;
 use crate::models::SubscriptionStatus;
 use crate::org::CurrentOrg;
-use crate::templates::{HtmlTemplate, Layout};
-use askama::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::{get, post};
+use axum::routing::post;
 use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -18,7 +16,6 @@ use uuid::Uuid;
 
 pub fn subscriptions_router() -> Router<AppState> {
     Router::new()
-        .route("/", get(get_current_subscription))
         .route("/checkout", post(stripe_checkout))
         .route("/portal", post(subscriptions_portal))
 }
@@ -248,35 +245,10 @@ impl Subscription {
     }
 }
 
-#[derive(Template)]
-#[template(path = "pages/subscription.html")]
-struct SubscriptionTemplate {
-    layout: Layout,
-    subscription: SubscriptionView,
-}
-
 pub enum SubscriptionView {
     Active(Subscription),
     CanSubscribe(String), // idempotency_key
     NotConfigured,
-}
-
-async fn get_current_subscription(
-    State(state): State<AppState>,
-    current_org: CurrentOrg,
-    session: Session,
-) -> Result<Response, AppError> {
-    if !is_admin(&state.db, &session, current_org.id).await? {
-        return Ok(StatusCode::FORBIDDEN.into_response());
-    }
-
-    let subscription = get_subscription_view(&state.db, current_org.id).await?;
-
-    Ok(HtmlTemplate(SubscriptionTemplate {
-        layout: Layout::load(&state.db, &current_org, &session).await?,
-        subscription,
-    })
-    .into_response())
 }
 
 pub async fn get_subscription_view(
