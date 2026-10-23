@@ -3,12 +3,10 @@ use crate::admin::is_admin;
 use crate::error::AppError;
 use crate::models::SubscriptionStatus;
 use crate::org::CurrentOrg;
-use crate::templates::{HtmlTemplate, Layout};
-use askama::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::{get, post};
+use axum::routing::post;
 use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -18,7 +16,6 @@ use uuid::Uuid;
 
 pub fn subscriptions_router() -> Router<AppState> {
     Router::new()
-        .route("/", get(get_current_subscription))
         .route("/checkout", post(stripe_checkout))
         .route("/portal", post(subscriptions_portal))
 }
@@ -44,7 +41,7 @@ async fn subscriptions_portal(
         return Ok(StatusCode::NOT_FOUND.into_response());
     };
 
-    let return_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+    let return_url = format!("{}{}", public_url, current_org.path("/settings"));
 
     let form = [("return_url", return_url), ("customer", stripe_customer_id)];
 
@@ -118,11 +115,11 @@ async fn stripe_checkout(
     };
 
     if has_ongoing_subscription(&state.db, current_org.id).await? {
-        return Ok(current_org.redirect("/subscriptions").into_response());
+        return Ok(current_org.redirect("/settings").into_response());
     }
 
-    let success_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
-    let cancel_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+    let success_url = format!("{}{}", public_url, current_org.path("/settings"));
+    let cancel_url = format!("{}{}", public_url, current_org.path("/settings"));
 
     let form = [
         ("success_url", success_url),
@@ -248,44 +245,28 @@ impl Subscription {
     }
 }
 
-#[derive(Template)]
-#[template(path = "pages/subscription.html")]
-struct SubscriptionTemplate {
-    layout: Layout,
-    subscription: SubscriptionView,
-}
-
-enum SubscriptionView {
+pub enum SubscriptionView {
     Active(Subscription),
     CanSubscribe(String), // idempotency_key
     NotConfigured,
 }
 
-async fn get_current_subscription(
-    State(state): State<AppState>,
-    current_org: CurrentOrg,
-    session: Session,
-) -> Result<Response, AppError> {
-    if !is_admin(&state.db, &session, current_org.id).await? {
-        return Ok(StatusCode::FORBIDDEN.into_response());
-    }
-
-    let subscription = get_valid_subscription(&state.db, current_org.id).await?;
+pub async fn get_subscription_view(
+    db: &SqlitePool,
+    org_id: i64,
+) -> Result<SubscriptionView, AppError> {
+    let subscription = get_valid_subscription(db, org_id).await?;
     let has_config = get_stripe_config().is_some();
 
-    let subscription = if has_config && let Some(subscription) = subscription {
-        SubscriptionView::Active(subscription)
+    if has_config && let Some(subscription) = subscription {
+        Ok(SubscriptionView::Active(subscription))
     } else if has_config {
-        SubscriptionView::CanSubscribe(find_idempotency_key(&state.db, current_org.id).await?)
+        Ok(SubscriptionView::CanSubscribe(
+            find_idempotency_key(db, org_id).await?,
+        ))
     } else {
-        SubscriptionView::NotConfigured
-    };
-
-    Ok(HtmlTemplate(SubscriptionTemplate {
-        layout: Layout::load(&state.db, &current_org, &session).await?,
-        subscription,
-    })
-    .into_response())
+        Ok(SubscriptionView::NotConfigured)
+    }
 }
 
 async fn find_idempotency_key(db: &SqlitePool, org_id: i64) -> Result<String, AppError> {
@@ -534,6 +515,7 @@ mod test {
         },
     ];
 
+    //noinspection SqlInsertValues
     #[tokio::test]
     async fn ongoing_subscription() {
         let db = SqlitePoolOptions::new()

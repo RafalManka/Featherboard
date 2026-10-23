@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+type HmacSha256 = Hmac<Sha256>;
 pub fn webhooks_router() -> Router<AppState> {
     Router::new().route("/stripe", post(stripe_webhook))
 }
@@ -133,7 +134,7 @@ async fn handle_invoice_paid(
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let subscription_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+    let subscription_url = format!("{}{}", public_url, current_org.path("/settings"));
 
     notify_payment_success(
         db,
@@ -189,7 +190,7 @@ async fn handle_invoice_payment_failed(
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let payment_url = format!("{}{}", public_url, current_org.path("/subscriptions"));
+    let payment_url = format!("{}{}", public_url, current_org.path("/settings"));
 
     notify_payment_failed(
         db,
@@ -316,6 +317,7 @@ async fn handle_subscription_event(
 
 const TOLERANCE_SECONDS: i64 = 300;
 
+//noinspection RsUnresolvedPath
 fn verify_stripe_signature(body: &[u8], header: &str, secret: &str) -> bool {
     let mut t = None;
     let mut signatures = Vec::new();
@@ -353,7 +355,7 @@ fn verify_stripe_signature(body: &[u8], header: &str, secret: &str) -> bool {
     signed_payload.push(b'.');
     signed_payload.extend_from_slice(body);
 
-    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret.as_bytes()) else {
+    let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) else {
         return false;
     };
 
@@ -490,6 +492,7 @@ mod test {
         assert_eq!(0, remaining_attempts);
     }
 
+    //noinspection RsUnresolvedPath
     fn signed_header(body: &[u8], timestamp: i64, secret: &str) -> String {
         let mut signed_payload = timestamp.to_string().into_bytes();
         signed_payload.push(b'.');

@@ -1,7 +1,7 @@
 use crate::admin::is_admin;
 use crate::email::{ChangelogCreatedEmail, notify_changelog_created};
 use crate::error::AppError;
-use crate::models::Changelog;
+use crate::models::{Changelog, Idea};
 use crate::org::CurrentOrg;
 use crate::templates::{HtmlTemplate, Layout};
 use crate::validation::{DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN};
@@ -10,7 +10,7 @@ use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Form, Router};
 use serde::Deserialize;
 use tower_sessions::Session;
@@ -20,6 +20,7 @@ pub fn changelog_router() -> Router<AppState> {
         .route("/", post(create_changelog))
         .route("/", get(list_changelogs))
         .route("/{id}", get(changelog_detail))
+        .route("/{id}", delete(delete_changelog))
         .route("/new", get(new_changelog_form))
 }
 
@@ -166,6 +167,8 @@ async fn list_changelogs(
 struct ChangelogDetailTemplate {
     layout: Layout,
     changelog: Changelog,
+    shipped_ideas: Vec<Idea>,
+    is_admin: bool,
 }
 
 #[derive(Deserialize)]
@@ -195,9 +198,58 @@ async fn changelog_detail(
         return Ok((StatusCode::NOT_FOUND, "changelog not found").into_response());
     };
 
+    let is_admin = is_admin(&state.db, &session, current_org.id).await?;
+
+    let sql = r#"
+        SELECT id, org_id, title, description, status, created_at, changelog_id
+        FROM ideas
+        WHERE org_id = ? AND changelog_id = ?
+        ORDER BY title ASC
+    "#;
+
+    let shipped_ideas: Vec<Idea> = sqlx::query_as(sql)
+        .bind(current_org.id)
+        .bind(changelog.id)
+        .fetch_all(&state.db)
+        .await?;
+
     Ok(HtmlTemplate(ChangelogDetailTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
         changelog,
+        shipped_ideas,
+        is_admin,
     })
     .into_response())
+}
+
+async fn delete_changelog(
+    State(state): State<AppState>,
+    current_org: CurrentOrg,
+    session: Session,
+    Path(id): Path<IdParam>,
+) -> Result<Response, AppError> {
+    if !is_admin(&state.db, &session, current_org.id).await? {
+        return Ok(StatusCode::FORBIDDEN.into_response());
+    }
+
+    // ideas.changelog_id is ON DELETE CASCADE (migration 0010) — without
+    // this, deleting a changelog would delete every idea that shipped in
+    // it, and (via their own ON DELETE CASCADE FKs) all of those ideas'
+    // votes and comments too. Unlinking first means the CASCADE has
+    // nothing left to act on by the time the changelog row is actually
+    // deleted: the ideas survive, just unlinked, same as the schema-level
+    // fix (ON DELETE SET NULL) would have done, without a migration.
+    sqlx::query("UPDATE ideas SET changelog_id = NULL WHERE changelog_id = ? AND org_id = ?")
+        .bind(id.id)
+        .bind(current_org.id)
+        .execute(&state.db)
+        .await?;
+
+    sqlx::query("DELETE FROM changelogs WHERE id = ? AND org_id = ?")
+        .bind(id.id)
+        .bind(current_org.id)
+        .execute(&state.db)
+        .await?;
+
+    Ok((StatusCode::OK, current_org.hx_redirect("/changelogs")).into_response())
 }

@@ -1,0 +1,80 @@
+{% extends "pages/base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block body_class %}wide{% endblock %}
+
+{% block content %}
+<div class="settings-layout">
+    <aside class="settings-sidebar">
+        <p class="settings-eyebrow">Settings</p>
+        <nav class="settings-nav" aria-label="Settings sections">
+            <a href="#billing">Billing</a>
+            <a href="#branding">Branding</a>
+            <a href="#github">Github</a>
+        </nav>
+    </aside>
+
+    <main class="settings-main">
+        <h1>Billing</h1>
+        <p class="settings-intro">Manage your Featherboard subscription.</p>
+
+        <section id="billing" class="settings-card">
+            <h2>Subscription</h2>
+            {% match subscription %}
+            {% when SubscriptionView::Active(subscription) %}
+            <p class="settings-status">Your subscription is active.</p>
+            <div class="settings-meta">
+                <span>Status</span>
+                <strong>{{ subscription.status }}</strong>
+            </div>
+            <div class="settings-meta">
+                <span>Started</span>
+                <time>{{ subscription.created_date() }}</time>
+            </div>
+            <form method="post" action="/{{ layout.org_slug }}/subscriptions/portal" target="_blank" rel="noopener">
+                <button type="submit">Manage subscription ↗</button>
+            </form>
+            {% when SubscriptionView::CanSubscribe(idempotency_key) %}
+            <p class="settings-status">Your workspace is not subscribed yet.</p>
+            <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+                <button type="submit">Subscribe</button>
+            </form>
+            {% when SubscriptionView::NotConfigured %}
+            <p class="settings-status">Billing is not configured for this instance.</p>
+            {% endmatch %}
+        </section>
+
+        <section id="branding" class="settings-card">
+            <h2>Branding</h2>
+            <form method="post" action="/{{ layout.org_slug }}/settings/branding">
+                <label>
+                    Accent color
+                    <input type="text" name="accent_color" value="{{ layout.accent_color.as_deref().unwrap_or("") }}">
+                </label>
+                <label>
+                    Logo URL
+                    <input type="text" name="logo_url" value="{{ layout.logo_url.as_deref().unwrap_or("") }}">
+                </label>
+                <button type="submit">Save</button>
+            </form>
+        </section>
+
+        <section id="github" class="settings-card">
+            <h2>Github</h2>
+            <form method="post" action="/{{ layout.org_slug }}/settings/github">
+                <label>
+                    Client ID
+                    <input type="text" name="github_client_id" value="{{ github.github_client_id }}">
+                </label>
+                <label>
+                    Client Secret
+                    <input type="password" name="github_client_secret" value="{{ github.github_client_secret }}">
+                </label>
+                <button type="submit">Save</button>
+            </form>
+        </section>
+
+    </main>
+</div>
+{% endblock %}

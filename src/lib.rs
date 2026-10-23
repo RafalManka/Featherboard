@@ -4,6 +4,7 @@ use crate::email::EmailClient;
 use crate::error::AppError;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use crate::login::login_router;
+use crate::settings::settings_router;
 use crate::subscription::subscriptions_router;
 use crate::webhooks::webhooks_router;
 use axum::Router;
@@ -30,6 +31,7 @@ pub mod ideas;
 pub mod login;
 pub mod models;
 pub mod org;
+pub mod settings;
 pub mod static_assets;
 pub mod subscription;
 pub mod templates;
@@ -89,6 +91,7 @@ fn org_router() -> Router<AppState> {
         .nest("/changelogs", changelog_router())
         .nest("/auth", auth_router())
         .nest("/subscriptions", subscriptions_router())
+        .nest("/settings", settings_router())
         .merge(login_router())
 }
 

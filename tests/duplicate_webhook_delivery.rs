@@ -7,15 +7,21 @@ use sha2::Sha256;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 
+type Sha256Hmac = Hmac<Sha256>;
+
+//noinspection RsUnresolvedPath
 fn sign(body: &[u8], secret: &str, timestamp: i64) -> String {
     let mut signed_payload = timestamp.to_string().into_bytes();
     signed_payload.push(b'.');
     signed_payload.extend_from_slice(body);
 
-    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+    let mut mac = Sha256Hmac::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(&signed_payload);
 
-    format!("t={timestamp},v1={}", hex::encode(mac.finalize().into_bytes()))
+    format!(
+        "t={timestamp},v1={}",
+        hex::encode(mac.finalize().into_bytes())
+    )
 }
 
 // Stripe explicitly does not guarantee exactly-once webhook delivery —
@@ -67,10 +73,9 @@ async fn replayed_subscription_created_event_does_not_duplicate_or_error() {
         .unwrap();
     assert_eq!(row_count, 1);
 
-    let status: String =
-        sqlx::query_scalar("SELECT status FROM subscriptions WHERE org_id = 1")
-            .fetch_one(&db)
-            .await
-            .unwrap();
+    let status: String = sqlx::query_scalar("SELECT status FROM subscriptions WHERE org_id = 1")
+        .fetch_one(&db)
+        .await
+        .unwrap();
     assert_eq!(status, "active");
 }

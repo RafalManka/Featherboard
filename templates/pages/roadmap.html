@@ -4,13 +4,18 @@
 {% block body_class %}wide{% endblock %}
 
 {% block content %}
-<h1>Roadmap</h1>
-<p><a class="back-link" href="/{{ layout.org_slug }}">&larr; Back to ideas</a></p>
+<div class="page-head">
+    <h1>Roadmap</h1>
+</div>
 
 <div class="roadmap">
     {% for (status, items) in groups %}
     <section class="roadmap-column">
-        <h2 class="status-pill {{ status.css_class() }}">{{ status.label() }}</h2>
+        <div class="roadmap-column-header">
+            <span class="status-dot {{ status.css_class() }}"></span>
+            <h2>{{ status.label() }}</h2>
+            <span class="count">{{ items.len() }}</span>
+        </div>
         {% if items.is_empty() %}
         <p class="empty">No ideas yet.</p>
         {% else %}
@@ -18,7 +23,7 @@
             {% for item in items %}
             <li class="roadmap-card">
                 <a href="/{{ layout.org_slug }}/ideas/{{ item.idea.id }}">{{ item.idea.title }}</a>
-                <span class="roadmap-vote-count">{{ item.vote_count }} votes</span>
+                <span class="roadmap-vote-count">{{ item.vote_count }} {% if item.vote_count == 1 %}vote{% else %}votes{% endif %}</span>
             </li>
             {% endfor %}
         </ul>

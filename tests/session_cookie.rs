@@ -35,6 +35,11 @@ async fn session_cookie_has_samesite_lax() {
 
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 
-    let set_cookie = response.headers().get("Set-Cookie").unwrap().to_str().unwrap();
+    let set_cookie = response
+        .headers()
+        .get("Set-Cookie")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(set_cookie.contains("SameSite=Lax;"));
 }

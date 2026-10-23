@@ -6,6 +6,7 @@ use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use tower::ServiceExt;
 
+//noinspection RsUnresolvedPath
 fn sign(body: &[u8], secret: &str, timestamp: i64) -> String {
     let mut signed_payload = timestamp.to_string().into_bytes();
     signed_payload.push(b'.');
@@ -14,7 +15,10 @@ fn sign(body: &[u8], secret: &str, timestamp: i64) -> String {
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(&signed_payload);
 
-    format!("t={timestamp},v1={}", hex::encode(mac.finalize().into_bytes()))
+    format!(
+        "t={timestamp},v1={}",
+        hex::encode(mac.finalize().into_bytes())
+    )
 }
 
 // Scenario 15 (see plan.md, Phase 7 and the manual test plan): disputes and

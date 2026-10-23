@@ -14,7 +14,10 @@ use tower_sessions_sqlx_store::SqliteStore;
 // back to Subscribe, even though the backend (has_ongoing_subscription)
 // already allowed a fresh checkout for that exact status. This confirms
 // the Subscribe form actually renders for a canceled org, not just that
-// the page loads.
+// the page loads. Targets /settings (not the old standalone /subscriptions
+// page, deleted 2026-10-21 once Settings' Billing section replaced it) —
+// both rendered the same SubscriptionView through the same shared
+// get_subscription_view helper, so the guarantee is unchanged.
 #[tokio::test]
 async fn canceled_subscription_shows_subscribe_form() {
     // SAFETY: this test is the only test in this binary (each tests/*.rs
@@ -62,7 +65,7 @@ async fn canceled_subscription_shows_subscribe_form() {
     let app = app_router(db, session_layer, None, None);
 
     let request = axum::http::Request::builder()
-        .uri("/default/subscriptions")
+        .uri("/default/settings")
         .header("Cookie", format!("id={session_id}"))
         .body(axum::body::Body::empty())
         .unwrap();

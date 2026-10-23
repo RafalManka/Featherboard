@@ -4,20 +4,48 @@
     --border: #e4e4e6;
     --bg-subtle: #f5f7fb;
     --accent: #51459e;
-    --accent-hover: #4c2eba;
-    --accent-tint: #eeeafa;
+    /* Derived from --accent rather than a fixed color, so a per-org
+       accent_color override (see base.html) darkens correctly on hover
+       too, instead of every hover state falling back to this default
+       purple regardless of the org's actual accent. */
+    --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+    /* Same bug/fix as --accent-hover above: was a fixed pastel purple
+       that ignored per-org accent_color, so hover/active backgrounds
+       stayed purple-tinted under e.g. a green org while the text on top
+       of them correctly went green. */
+    --accent-tint: color-mix(in srgb, var(--accent) 12%, white);
     --accent-contrast: #ffffff;
+
+    /* Shared corner radius for every rectangular surface that isn't a
+       pill (idea-card, sidebar-card, sidebar-cta, sidebar-filters rows,
+       cta-outline). True pills (.status-pill, the sort toggle) stay at
+       999px — their own separate, already-consistent tier — this token
+       is only for the non-pill tier. */
+    --radius-card: 0.75rem;
+
+    /* Sidebar column width — also used to give .sidebar-cta an explicit
+       width when it's used outside a sidebar (e.g. inline in
+       .page-head-actions on the changelog list), so the button renders
+       at the same size there as it does stretched to fill the sidebar
+       on the board/idea-detail pages, instead of shrinking to its own
+       content width and visibly resizing when navigating between pages. */
+    --sidebar-width: 280px;
 
     --status-open-bg: #f5f7fb;
     --status-open-fg: #8f8f9a;
+    --status-open-dot: #b7b7c2;
     --status-planned-bg: #dff7fa;
     --status-planned-fg: #128a98;
+    --status-planned-dot: #1fb8c9;
     --status-in-progress-bg: #fee7cf;
     --status-in-progress-fg: #da9a4b;
+    --status-in-progress-dot: #f0a93f;
     --status-done-bg: #dcf5f0;
     --status-done-fg: #18ad96;
+    --status-done-dot: #1fcdae;
     --status-declined-bg: #fbe4db;
     --status-declined-fg: #cc5f32;
+    --status-declined-dot: #e2764a;
 }
 
 * {
@@ -88,6 +116,85 @@ a {
     text-decoration: none;
 }
 
+/* Account menu: a cogwheel trigger (no avatar data exists anywhere in
+   this app to use instead) opening a dropdown — Billing + Log out today,
+   the natural home for org branding/GitHub OAuth config once that admin
+   settings UI gets built (see plan.md Phase 8). Plain <details>/<summary>,
+   same zero-JS disclosure pattern already used for comment replies. */
+.account-menu {
+    position: relative;
+}
+
+.account-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: var(--radius-card);
+    background: var(--bg-subtle);
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+}
+
+.account-trigger::-webkit-details-marker {
+    display: none;
+}
+
+.account-trigger:hover {
+    background: var(--border);
+}
+
+.account-menu[open] .account-trigger {
+    background: var(--border);
+}
+
+.account-trigger svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.account-dropdown {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    min-width: 10rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 4px 16px rgba(17, 20, 44, 0.08);
+    padding: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    z-index: 10;
+}
+
+.account-dropdown a {
+    display: block;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.5rem;
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.account-dropdown a:hover {
+    background: var(--bg-subtle);
+}
+
+/* Visually separates "leave" actions (Log out) from "configure" actions
+   (Billing, future settings) — same reasoning as the idea-detail page's
+   standalone Danger Zone card, just a lighter-weight divider here since
+   logging out isn't destructive. */
+.account-dropdown-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.3rem 0.2rem;
+}
+
 .main-nav a:hover {
     color: var(--accent);
 }
@@ -99,55 +206,58 @@ a {
     margin-bottom: 0.5rem;
 }
 
+/* Subtle-filled treatment: soft neutral background, no accent color, so
+   it reads as a clear button without competing with the sidebar's "Add
+   feedback" (the only accent-colored button on the page). */
 .cta-outline {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.5rem 1.05rem;
-    background: #fff;
-    color: var(--accent);
-    border: 1.5px solid var(--accent);
-    border-radius: 999px;
+    padding: 0.32rem 0.95rem;
+    background: var(--bg-subtle);
+    color: var(--text);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-card);
     font-weight: 600;
     font-size: 0.9rem;
+    line-height: 1.4;
     text-decoration: none;
 }
 
 .cta-outline:hover {
-    background: var(--accent);
-    color: #fff;
+    background: var(--border);
 }
 
-/* Submit CTA: full-width solid button */
-.submit-idea-cta {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1.25rem;
-    background: var(--accent);
-    color: var(--accent-contrast);
-    border-radius: 0.6rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
-}
-
-.submit-idea-cta:hover {
-    background: var(--accent-hover);
-}
 
 /* Status pill, shared by list/detail/roadmap */
 .status-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.15rem 0.6rem;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* Small colored circle so status reads by color/shape alone, not just
+   the pill's background tint (subtle, reads similarly across statuses
+   at a glance). Used inside .status-pill and in the sidebar filter
+   list. */
+.status-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot.status-open { background: var(--status-open-dot); }
+.status-dot.status-planned { background: var(--status-planned-dot); }
+.status-dot.status-in-progress { background: var(--status-in-progress-dot); }
+.status-dot.status-done { background: var(--status-done-dot); }
+.status-dot.status-declined { background: var(--status-declined-dot); }
 
 .status-open {
     background: var(--status-open-bg);
@@ -174,17 +284,9 @@ a {
     color: var(--status-declined-fg);
 }
 
-/* Filter/sort row on the board page: two joined segmented controls */
-.filter-bar {
-    display: flex;
-    align-items: stretch;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.filters,
+/* Sort toggle, next to the board heading. Status filtering lives in the
+   sidebar (.sidebar-filters) instead of a second segmented control here
+   — see .page-layout below. */
 .sort {
     display: inline-flex;
     flex-wrap: nowrap;
@@ -197,12 +299,10 @@ a {
     scrollbar-width: none;
 }
 
-.filters::-webkit-scrollbar,
 .sort::-webkit-scrollbar {
     display: none;
 }
 
-.filters a,
 .sort a {
     padding: 0.4rem 0.85rem;
     border-radius: 999px;
@@ -213,33 +313,36 @@ a {
     white-space: nowrap;
 }
 
-.filters a.active,
 .sort a.active {
     background: var(--accent);
     color: var(--accent-contrast);
     font-weight: 600;
 }
 
-/* Vote button, reused on board list, detail page, and vote partial swaps */
+/* Vote button, reused on board list, detail page, and vote partial swaps.
+   Stays on the left edge (the real htmx swap target) rather than
+   UserJot's right-aligned chip — moving it would mean relocating that
+   swap target, a structural change left for a future pass. */
 .vote-btn {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 3rem;
-    height: 3rem;
+    gap: 0.1rem;
+    width: 2.75rem;
+    height: 3.25rem;
     padding: 0;
-    border: none;
-    border-radius: 0.7rem;
-    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: #fff;
     color: var(--muted);
     cursor: pointer;
     font: inherit;
 }
 
 .vote-btn:hover {
-    background: var(--accent-tint);
+    border-color: var(--accent);
     color: var(--accent);
 }
 
@@ -256,10 +359,42 @@ a {
 
 .vote-btn.voted {
     background: var(--accent);
+    border-color: var(--accent);
     color: var(--accent-contrast);
 }
 
 /* Board list */
+/* Shown instead of .idea-list when a filter (or the whole board) has no
+   ideas — previously just an empty <ul>, no visual cue the page loaded
+   correctly rather than being broken. */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    /* Roughly matches the sidebar's height (CTA + status-filter card), so
+       the two columns read as the same visual weight instead of the
+       empty state looking small/orphaned next to a taller sidebar. */
+    min-height: 20rem;
+    padding: 1rem;
+    text-align: center;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-card);
+}
+
+.empty-state-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    color: var(--border);
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
 .idea-list {
     list-style: none;
     padding: 0;
@@ -275,7 +410,13 @@ a {
     padding: 0.9rem;
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.idea-card:hover {
+    border-color: var(--accent-tint);
+    box-shadow: 0 2px 10px rgba(17, 20, 44, 0.06);
 }
 
 .idea-main {
@@ -310,6 +451,382 @@ a {
     color: var(--muted);
 }
 
+.comment-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.comment-count svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+/* ===== Two-column board layout =====
+   UserJot's sidebar holds a CTA + a "Boards" switcher. Featherboard has
+   no multi-board concept — one org, one board — so the sidebar instead
+   repurposes that slot for status filtering, the one real navigational
+   axis this app actually has. */
+.page-layout {
+    display: grid;
+    grid-template-columns: 1fr var(--sidebar-width);
+    gap: 2rem;
+    align-items: start;
+    margin-top: 1.25rem;
+}
+
+.page-main {
+    min-width: 0;
+}
+
+/* Default top margin for standalone usage (changelog_list.html, no
+   sidebar). Inside .page-layout, the top margin lives on the grid
+   container instead — shared by both .page-main and .sidebar — so it's
+   zeroed out there specifically (real specificity, not source order:
+   two classes beats one) to avoid doubling up. */
+.page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.25rem 0 1rem;
+}
+
+.page-layout .page-head {
+    margin-top: 0;
+}
+
+.page-head h1 {
+    margin: 0;
+}
+
+.page-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sidebar {
+    position: sticky;
+    top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Explicit width (--sidebar-width) rather than relying on the sidebar's
+   flex-stretch to size it: in the sidebar that stretch already produces
+   280px, but this class is also used inline in .page-head-actions on
+   the changelog list, where there's no sidebar column to stretch to —
+   without an explicit width it would just shrink to its own content
+   size there instead of matching. */
+.sidebar-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    gap: 0.45rem;
+    padding: 0.65rem 1rem;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-radius: var(--radius-card);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+
+.sidebar-cta:hover {
+    background: var(--accent-hover);
+}
+
+/* .outline modifier: same size/shape/icon as .sidebar-cta (compound
+   class, real specificity — not fighting source order), but subtle-
+   filled instead of solid-accent, so a secondary action like "Submit a
+   changelog" doesn't read as the same primary action as "Add feedback"
+   elsewhere just because it's the same size. */
+.sidebar-cta.outline {
+    background: var(--bg-subtle);
+    color: var(--text);
+}
+
+.sidebar-cta.outline:hover {
+    background: var(--border);
+}
+
+.sidebar-cta svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.sidebar-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 0.5rem;
+    background: #fff;
+}
+
+.sidebar-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    padding: 0.35rem 0.6rem 0.5rem;
+}
+
+.sidebar-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.sidebar-filters a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-card);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.sidebar-filters a:hover {
+    background: var(--bg-subtle);
+}
+
+.sidebar-filters a.active {
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.sidebar-filters .count {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.sidebar-filters a.active .count {
+    color: var(--accent);
+}
+
+/* "Shipped ideas" sidebar card on the changelog-detail page — surfaces
+   the ideas.changelog_id link (Phase 3) that's existed since the
+   changelog feature shipped but was never actually displayed anywhere.
+   Row styling matches .sidebar-filters, same "list of links in a
+   sidebar card" idiom. */
+.sidebar-shipped-ideas {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.sidebar-shipped-ideas a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius-card);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.sidebar-shipped-ideas a:hover {
+    background: var(--bg-subtle);
+    color: var(--accent);
+}
+
+/* Standalone, not nested under .sidebar-shipped-ideas — it's a sibling
+   shown instead of that list, not a row inside it. */
+.sidebar-empty {
+    margin: 0;
+    padding: 0.35rem 0.6rem 0.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+/* Admin settings layout: a compact Fider-style navigation rail beside the
+   currently selected settings panel. */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 10rem minmax(0, 1fr);
+    gap: 3rem;
+    margin-top: 2rem;
+}
+
+.settings-sidebar {
+    position: sticky;
+    top: 1.25rem;
+    align-self: start;
+}
+
+.settings-eyebrow {
+    margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.settings-nav a {
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.5rem;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.settings-nav a:hover {
+    background: var(--bg-subtle);
+}
+
+/* Active section highlighting, driven entirely by the URL's #hash via
+   :target rather than a class in the markup — a class would need a
+   round-trip (JS scroll-spy, or a server-rendered guess at which anchor
+   the browser landed on) just to stay in sync with where the page
+   actually scrolled to; :target already knows. :has() lets a link react
+   to *another* element (its section) being the target, since :target
+   only applies to the element it matches, not anything that links to it.
+   Billing is the implied default section, active both when nothing is
+   targeted yet (plain /settings) and when it's explicitly #billing;
+   every other section is active only when explicitly targeted. No
+   "turn it off" rule needed anywhere — a link simply falls back to
+   .settings-nav a's plain style the moment none of these match. Adding
+   a third section costs exactly one more comma-separated line here,
+   nothing else. */
+body:not(:has(:target)) .settings-nav a[href="#billing"],
+body:has(#billing:target) .settings-nav a[href="#billing"],
+body:has(#branding:target) .settings-nav a[href="#branding"],
+body:has(#github:target) .settings-nav a[href="#github"] {
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.settings-main {
+    min-width: 0;
+}
+
+.settings-main h1 {
+    margin-bottom: 0.25rem;
+}
+
+.settings-intro {
+    margin: 0 0 1.5rem;
+    color: var(--muted);
+}
+
+.settings-card {
+    max-width: 42rem;
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    margin-bottom: 6px;
+}
+
+.settings-card h2 {
+    margin: 0 0 1rem;
+}
+
+.settings-status {
+    margin: 0 0 1rem;
+}
+
+.settings-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+
+.settings-meta span {
+    color: var(--muted);
+}
+
+.settings-card form {
+    margin-top: 1rem;
+}
+
+/* Same visual language as .idea-form's inputs (submit-idea/comment
+   forms) — unstyled here until the branding form added real text
+   inputs; billing's form only ever had a bare submit button, which
+   button[type="submit"] already styles globally. The branding form
+   wraps each input's text label directly in <label> (no separate
+   <div>), so the label itself is the block-level spacing unit. */
+.settings-card form label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.settings-card form input[type="text"],
+.settings-card form input[type="password"] {
+    display: block;
+    width: 100%;
+    max-width: 24rem;
+    margin-top: 0.3rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    font: inherit;
+    font-weight: 400;
+    background: var(--bg-subtle);
+}
+
+.settings-card form input[type="text"]:focus,
+.settings-card form input[type="password"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+/* Below this width the sidebar drops above the list as a normal block
+   instead of sitting beside it — a 280px rail has no room left once the
+   main column would otherwise be squeezed under ~400px. */
+@media (max-width: 52rem) {
+    .page-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+    }
+
+    .settings-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-top: 1.25rem;
+    }
+
+    .settings-sidebar {
+        position: static;
+    }
+
+    .settings-nav {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+}
+
 /* Idea detail */
 .idea-detail-card {
     display: flex;
@@ -317,7 +834,7 @@ a {
     padding: 1.25rem;
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
     margin-bottom: 1.5rem;
 }
 
@@ -325,13 +842,6 @@ a {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     margin-top: 0.5rem;
-}
-
-.status-form {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin: 0.5rem 0;
 }
 
 /* Forms (submit idea, comment, reply) */
@@ -347,19 +857,17 @@ a {
 }
 
 .idea-form input[type="text"],
-.idea-form textarea,
-.status-form select {
+.idea-form textarea {
     width: 100%;
     padding: 0.5rem;
     border: 1px solid var(--border);
-    border-radius: 0.6rem;
+    border-radius: var(--radius-card);
     font: inherit;
     background: var(--bg-subtle);
 }
 
 .idea-form input[type="text"]:focus,
-.idea-form textarea:focus,
-.status-form select:focus {
+.idea-form textarea:focus {
     outline: none;
     border-color: var(--accent);
     background: #fff;
@@ -375,8 +883,9 @@ a {
     margin-top: 0.5rem;
 }
 
-button[type="submit"],
-.status-form button {
+/* True pill — same tier as .status-pill/the sort toggle, not part of
+   the --radius-card unification. */
+button[type="submit"] {
     padding: 0.5rem 1rem;
     border: none;
     border-radius: 999px;
@@ -388,8 +897,7 @@ button[type="submit"],
     cursor: pointer;
 }
 
-button[type="submit"]:hover,
-.status-form button:hover {
+button[type="submit"]:hover {
     background: var(--accent-hover);
 }
 
@@ -399,33 +907,165 @@ button[type="submit"]:hover,
     margin: 0.25rem 0 0;
 }
 
-/* Comments */
-.comment {
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--border);
+/* Sidebar "Details"/"Actions" cards on the idea-detail page — a compact
+   properties panel (label + value per row, admin fields editable inline
+   via a trimmed <select> + icon-only submit button) replacing three
+   separate full-width <select>+button forms that used to stack above the
+   description, competing with the idea's own content. */
+.detail-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
 }
 
-.comment.reply {
-    margin-left: 1.5rem;
-    border-bottom: none;
-    padding-bottom: 0;
+.detail-field-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.detail-field-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.detail-field-form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.detail-field-form select {
+    width: 8rem;
+    /* Pins the select+button pair to the row's right edge as a unit (tight,
+       consistent gap between them) rather than putting the margin on the
+       button alone, which left an uneven, variable-width gap between
+       select and button depending on label length. */
+    margin-left: auto;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    font: inherit;
+    font-size: 0.82rem;
+    background: #fff;
+    color: var(--text);
+}
+
+/* Deliberately after button[type="submit"] above: equal selector
+   specificity to it, so source order is what makes this win for the
+   compact icon-only submit buttons in .detail-field-form rows instead of
+   inheriting the wide pill padding/radius meant for full-width buttons. */
+.detail-field-form button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    padding: 0;
+    border: none;
+    border-radius: 0.5rem;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.detail-field-form button:hover {
+    background: var(--accent-hover);
+}
+
+.detail-field-form button svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+}
+
+.sidebar-card .detail-field + .detail-field,
+.sidebar-card .detail-field-form + .detail-field-form {
+    border-top: 1px solid var(--border);
+}
+
+/* Ghost treatment: a bare .detail-danger would lose outright to
+   button[type="submit"] above (attribute selectors outrank classes in
+   specificity, not just source order), so it's qualified with
+   [type="submit"] too to beat it cleanly. */
+button[type="submit"].detail-danger {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: none;
+    border-radius: var(--radius-card);
+    background: transparent;
+    color: var(--status-declined-fg);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+button[type="submit"].detail-danger:hover {
+    background: var(--status-declined-bg);
+}
+
+/* Comments, restyled as cards instead of flat text separated only by a
+   border-bottom, matching the card language used everywhere else. */
+.comment-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 1rem 0 1.5rem;
+}
+
+.comment-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 0.8rem 0.9rem;
+}
+
+.comment-card .comment-card {
+    margin-top: 0.6rem;
+    background: var(--bg-subtle);
+    border-color: transparent;
+}
+
+.comment-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
 }
 
 .comment-author {
-    margin: 0 0 0.2rem;
     font-weight: 600;
     font-size: 0.85rem;
 }
 
-.comment-body {
-    margin: 0;
+.comment-date {
+    font-size: 0.75rem;
+    color: var(--muted);
 }
 
-details summary {
+.comment-body {
+    margin: 0 0 0.4rem;
+    font-size: 0.9rem;
+}
+
+.comment-reply-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-card);
+    background: var(--bg-subtle);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 600;
     cursor: pointer;
-    color: var(--accent);
-    font-size: 0.85rem;
-    margin-top: 0.4rem;
+}
+
+.comment-reply-toggle:hover {
+    background: var(--border);
 }
 
 /* Roadmap */
@@ -439,12 +1079,26 @@ details summary {
 .roadmap-column {
     background: var(--bg-subtle);
     border: none;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
     padding: 0.75rem;
 }
 
-.roadmap-column h2 {
-    margin: 0 0 0.6rem;
+.roadmap-column-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.roadmap-column-header h2 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.roadmap-column-header .count {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.8rem;
 }
 
 .roadmap-column .empty {
@@ -462,11 +1116,20 @@ details summary {
     gap: 0.5rem;
 }
 
+/* Same radius token as .idea-card, plus the same hover treatment, so
+   roadmap cards feel like the same "card" language as the rest of the
+   app instead of their own smaller, flatter variant. */
 .roadmap-card {
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 0.6rem;
+    border-radius: var(--radius-card);
     padding: 0.5rem 0.6rem;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.roadmap-card:hover {
+    border-color: var(--accent-tint);
+    box-shadow: 0 2px 10px rgba(17, 20, 44, 0.06);
 }
 
 .roadmap-card a {
@@ -490,6 +1153,20 @@ details summary {
 @media (max-width: 30rem) {
     body {
         max-width: 100%;
+    }
+
+    /* .sidebar-cta's fixed --sidebar-width (280px) is wider than the
+       viewport itself below this breakpoint — without this, "Submit a
+       changelog" on the single-column changelog list (the only page that
+       puts .sidebar-cta inline in .page-head rather than in .sidebar)
+       overflows off the right edge instead of wrapping. */
+    .page-head {
+        flex-wrap: wrap;
+    }
+
+    .page-head-actions,
+    .page-head-actions .sidebar-cta {
+        width: 100%;
     }
 }
 
