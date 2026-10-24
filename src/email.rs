@@ -18,6 +18,21 @@ pub struct EmailClient {
     port: u16,
 }
 
+pub trait Mailer {
+    fn sender(&self) -> &str;
+    fn send(&self, message: &Message) -> Result<(), ()>;
+}
+
+impl Mailer for EmailClient {
+    fn sender(&self) -> &str {
+        &self.sender
+    }
+
+    fn send(&self, message: &Message) -> Result<(), ()> {
+        self.send_email(message).map_err(|_| ())
+    }
+}
+
 impl EmailClient {
     pub fn load() -> Option<Self> {
         let Some(sender) = env::var("SMTP_USER").ok() else {
@@ -191,18 +206,14 @@ async fn notification_recipient_emails(
         .unwrap_or_default()
 }
 
-pub struct EmailNotifier<'a> {
+pub struct EmailNotifier<'a, M: Mailer + ?Sized> {
     db: &'a SqlitePool,
     current_org: &'a CurrentOrg,
-    email_client: &'a EmailClient,
+    email_client: &'a M,
 }
 
-impl<'a> EmailNotifier<'a> {
-    pub fn new(
-        db: &'a SqlitePool,
-        current_org: &'a CurrentOrg,
-        email_client: &'a EmailClient,
-    ) -> Self {
+impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
+    pub fn new(db: &'a SqlitePool, current_org: &'a CurrentOrg, email_client: &'a M) -> Self {
         Self {
             db,
             current_org,
@@ -223,14 +234,14 @@ impl<'a> EmailNotifier<'a> {
             let message = Message::builder()
                 .from(Mailbox::new(
                     Some(self.current_org.slug.clone()),
-                    self.email_client.sender.parse()?,
+                    self.email_client.sender().parse()?,
                 ))
                 .to(Mailbox::new(None, email.parse()?))
                 .subject(format!("New comment on: {}", template.idea_title))
                 .header(ContentType::TEXT_HTML)
                 .body(template.render()?)?;
 
-            _ = self.email_client.send_email(&message);
+            _ = self.email_client.send(&message);
         }
 
         Ok(())
@@ -249,7 +260,7 @@ impl<'a> EmailNotifier<'a> {
             let message = Message::builder()
                 .from(Mailbox::new(
                     Some(self.current_org.slug.clone()),
-                    self.email_client.sender.parse()?,
+                    self.email_client.sender().parse()?,
                 ))
                 .to(Mailbox::new(None, email.parse()?))
                 .subject(format!(
@@ -259,7 +270,7 @@ impl<'a> EmailNotifier<'a> {
                 .header(ContentType::TEXT_HTML)
                 .body(template.render()?)?;
 
-            _ = self.email_client.send_email(&message);
+            _ = self.email_client.send(&message);
         }
 
         Ok(())
@@ -268,9 +279,13 @@ impl<'a> EmailNotifier<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::notification_recipient_emails;
+    use super::{
+        EmailNotifier, Mailer, NewCommentEmail, StatusChangedEmail, notification_recipient_emails,
+    };
     use crate::org::CurrentOrg;
+    use lettre::Message;
     use sqlx::sqlite::SqlitePoolOptions;
+    use std::sync::Mutex;
 
     fn current_org(id: i64) -> CurrentOrg {
         CurrentOrg {
@@ -393,6 +408,124 @@ mod tests {
                 "admin@example.com".to_string(),
                 "creator@example.com".to_string()
             ]
+        );
+    }
+
+    struct FakeEmailer {
+        recipients: Mutex<Vec<String>>,
+    }
+
+    impl FakeEmailer {
+        fn new() -> Self {
+            Self {
+                recipients: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn recipients(&self) -> Vec<String> {
+            let mut recipients = self.recipients.lock().unwrap().clone();
+            recipients.sort();
+            recipients
+        }
+    }
+
+    impl Mailer for FakeEmailer {
+        fn sender(&self) -> &str {
+            "foo@example.com"
+        }
+
+        fn send(&self, message: &Message) -> Result<(), ()> {
+            let mut recipients = self.recipients.lock().unwrap();
+
+            recipients.extend(message.envelope().to().iter().map(ToString::to_string));
+
+            Ok(())
+        }
+    }
+
+    //noinspection SqlResolve
+    //noinspection SqlInsertValues
+    #[tokio::test]
+    async fn notifier_sends_to_recipients_except_the_triggering_user() {
+        let email_client = FakeEmailer::new();
+
+        let db = test_db().await;
+        sqlx::query(
+            "INSERT INTO users (id, org_id, email, is_admin) VALUES
+                (1, 1, 'creator@example.com', 0),
+                (2, 1, 'voter@example.com', 1),
+                (3, 1, 'admin@example.com', 1)",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id) VALUES (10, 1, 1)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO votes (idea_id, user_id) VALUES (10, 2)")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        EmailNotifier::new(&db, &current_org(1), &email_client)
+            .comment_created(
+                Some(2),
+                10,
+                NewCommentEmail {
+                    idea_title: "Test idea".into(),
+                    author_name: "Test user".into(),
+                    comment_body: "Test comment".into(),
+                    idea_url: "/default/ideas/10".into(),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(email_client.sender(), "foo@example.com");
+        assert_eq!(
+            email_client.recipients(),
+            vec!["admin@example.com", "creator@example.com"]
+        );
+    }
+
+    //noinspection SqlResolve
+    //noinspection SqlInsertValues
+    #[tokio::test]
+    async fn status_notifier_sends_to_recipients_except_the_triggering_admin() {
+        let email_client = FakeEmailer::new();
+
+        let db = test_db().await;
+        sqlx::query(
+            "INSERT INTO users (id, org_id, email, is_admin) VALUES
+                (1, 1, 'creator@example.com', 0),
+                (2, 1, 'admin@example.com', 1),
+                (3, 1, 'other-admin@example.com', 1)",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id) VALUES (10, 1, 1)")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        EmailNotifier::new(&db, &current_org(1), &email_client)
+            .status_changed(
+                Some(2),
+                10,
+                StatusChangedEmail {
+                    idea_title: "Test idea".into(),
+                    new_status: "Planned".into(),
+                    idea_url: "/default/ideas/10".into(),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            email_client.recipients(),
+            vec!["creator@example.com", "other-admin@example.com"]
         );
     }
 }
