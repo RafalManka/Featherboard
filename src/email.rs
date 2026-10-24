@@ -148,6 +148,14 @@ pub struct NewCommentEmail {
     pub idea_url: String,
 }
 
+#[derive(Template)]
+#[template(path = "emails/status_changed.html")]
+pub struct StatusChangedEmail {
+    pub idea_title: String,
+    pub new_status: String,
+    pub idea_url: String,
+}
+
 async fn notification_recipient_emails(
     db: &SqlitePool,
     current_org: &CurrentOrg,
@@ -183,68 +191,79 @@ async fn notification_recipient_emails(
         .unwrap_or_default()
 }
 
-pub async fn notify_comment_created(
-    db: &SqlitePool,
-    current_org: &CurrentOrg,
-    email_client: &EmailClient,
-    user_id: Option<i64>,
-    idea_id: i64,
-    template: NewCommentEmail,
-) -> Result<(), AppError> {
-    let emails = notification_recipient_emails(db, current_org, user_id, idea_id).await;
-
-    for email in emails {
-        let message = Message::builder()
-            .from(Mailbox::new(
-                Some(current_org.slug.clone()),
-                email_client.sender.parse()?,
-            ))
-            .to(Mailbox::new(None, email.parse()?))
-            .subject(format!("New comment on: {}", template.idea_title))
-            .header(ContentType::TEXT_HTML)
-            .body(template.render()?)?;
-
-        _ = email_client.send_email(&message);
-    }
-
-    Ok(())
+pub struct EmailNotifier<'a> {
+    db: &'a SqlitePool,
+    current_org: &'a CurrentOrg,
+    email_client: &'a EmailClient,
 }
 
-#[derive(Template)]
-#[template(path = "emails/status_changed.html")]
-pub struct StatusChangedEmail {
-    pub idea_title: String,
-    pub new_status: String,
-    pub idea_url: String,
-}
-pub async fn notify_status_changed(
-    user_id: Option<i64>,
-    idea_id: i64,
-    db: &SqlitePool,
-    current_org: &CurrentOrg,
-    email_client: &EmailClient,
-    template: StatusChangedEmail,
-) -> Result<(), AppError> {
-    let emails = notification_recipient_emails(db, current_org, user_id, idea_id).await;
-
-    for email in emails {
-        let message = Message::builder()
-            .from(Mailbox::new(
-                Some(current_org.slug.clone()),
-                email_client.sender.parse()?,
-            ))
-            .to(Mailbox::new(None, email.parse()?))
-            .subject(format!(
-                "Status changed to {}: {}",
-                template.new_status, template.idea_title
-            ))
-            .header(ContentType::TEXT_HTML)
-            .body(template.render()?)?;
-
-        _ = email_client.send_email(&message);
+impl<'a> EmailNotifier<'a> {
+    pub fn new(
+        db: &'a SqlitePool,
+        current_org: &'a CurrentOrg,
+        email_client: &'a EmailClient,
+    ) -> Self {
+        Self {
+            db,
+            current_org,
+            email_client,
+        }
     }
 
-    Ok(())
+    pub async fn comment_created(
+        &self,
+        user_id: Option<i64>,
+        idea_id: i64,
+        template: NewCommentEmail,
+    ) -> Result<(), AppError> {
+        let emails =
+            notification_recipient_emails(self.db, self.current_org, user_id, idea_id).await;
+
+        for email in emails {
+            let message = Message::builder()
+                .from(Mailbox::new(
+                    Some(self.current_org.slug.clone()),
+                    self.email_client.sender.parse()?,
+                ))
+                .to(Mailbox::new(None, email.parse()?))
+                .subject(format!("New comment on: {}", template.idea_title))
+                .header(ContentType::TEXT_HTML)
+                .body(template.render()?)?;
+
+            _ = self.email_client.send_email(&message);
+        }
+
+        Ok(())
+    }
+
+    pub async fn status_changed(
+        &self,
+        user_id: Option<i64>,
+        idea_id: i64,
+        template: StatusChangedEmail,
+    ) -> Result<(), AppError> {
+        let emails =
+            notification_recipient_emails(self.db, self.current_org, user_id, idea_id).await;
+
+        for email in emails {
+            let message = Message::builder()
+                .from(Mailbox::new(
+                    Some(self.current_org.slug.clone()),
+                    self.email_client.sender.parse()?,
+                ))
+                .to(Mailbox::new(None, email.parse()?))
+                .subject(format!(
+                    "Status changed to {}: {}",
+                    template.new_status, template.idea_title
+                ))
+                .header(ContentType::TEXT_HTML)
+                .body(template.render()?)?;
+
+            _ = self.email_client.send_email(&message);
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -304,6 +323,8 @@ mod tests {
         db
     }
 
+    //noinspection SqlResolve
+    //noinspection SqlInsertValues
     #[tokio::test]
     async fn notification_recipients_include_creator_voters_and_admins_once() {
         let db = test_db().await;
@@ -340,6 +361,8 @@ mod tests {
         );
     }
 
+    //noinspection SqlResolve
+    //noinspection SqlInsertValues
     #[tokio::test]
     async fn notification_recipients_exclude_the_triggering_user() {
         let db = test_db().await;

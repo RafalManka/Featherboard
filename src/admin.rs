@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::email::{StatusChangedEmail, notify_status_changed};
+use crate::email::{EmailNotifier, StatusChangedEmail};
 use crate::error::AppError;
 use crate::ideas::get_idea_title;
 use crate::models::IdeaStatus;
@@ -84,19 +84,17 @@ async fn update_status(
         let idea_url = current_org.path(&format!("/ideas/{}", id_path.id));
         let idea_url = format!("{}{}", public_url, idea_url);
         let new_status = status.label().to_string();
-        notify_status_changed(
-            author_id,
-            id_path.id,
-            &state.db,
-            &current_org,
-            &email_client,
-            StatusChangedEmail {
-                idea_title,
-                new_status,
-                idea_url,
-            },
-        )
-        .await?;
+        EmailNotifier::new(&state.db, &current_org, &email_client)
+            .status_changed(
+                author_id,
+                id_path.id,
+                StatusChangedEmail {
+                    idea_title,
+                    new_status,
+                    idea_url,
+                },
+            )
+            .await?;
     }
 
     Ok(current_org
