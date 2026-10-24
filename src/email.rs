@@ -147,14 +147,13 @@ pub struct NewCommentEmail {
     pub comment_body: String,
     pub idea_url: String,
 }
-pub async fn notify_comment_created(
+
+async fn notification_recipient_emails(
     db: &SqlitePool,
     current_org: &CurrentOrg,
-    email_client: &EmailClient,
     user_id: Option<i64>,
     idea_id: i64,
-    template: NewCommentEmail,
-) -> Result<(), AppError> {
+) -> Vec<String> {
     let sql = r#"
            SELECT DISTINCT u.email
            FROM users u
@@ -172,7 +171,7 @@ pub async fn notify_comment_created(
             AND u.id != ?
         "#;
 
-    let emails: Vec<String> = sqlx::query_scalar(sql)
+    sqlx::query_scalar(sql)
         .bind(current_org.id)
         .bind(idea_id)
         .bind(current_org.id)
@@ -181,7 +180,18 @@ pub async fn notify_comment_created(
         .bind(user_id.unwrap_or(-1))
         .fetch_all(db)
         .await
-        .unwrap_or(vec![]);
+        .unwrap_or_default()
+}
+
+pub async fn notify_comment_created(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    email_client: &EmailClient,
+    user_id: Option<i64>,
+    idea_id: i64,
+    template: NewCommentEmail,
+) -> Result<(), AppError> {
+    let emails = notification_recipient_emails(db, current_org, user_id, idea_id).await;
 
     for email in emails {
         let message = Message::builder()
@@ -210,39 +220,12 @@ pub struct StatusChangedEmail {
 pub async fn notify_status_changed(
     user_id: Option<i64>,
     idea_id: i64,
-
     db: &SqlitePool,
     current_org: &CurrentOrg,
     email_client: &EmailClient,
     template: StatusChangedEmail,
 ) -> Result<(), AppError> {
-    let sql = r#"
-           SELECT DISTINCT u.email
-           FROM users u
-           WHERE u.org_id = ?
-            AND u.id IN (
-                SELECT user_id FROM ideas
-                WHERE id = ? AND org_id = ? AND user_id IS NOT NULL
-                UNION
-                SELECT user_id FROM votes
-                WHERE idea_id = ? AND user_id IS NOT NULL
-                UNION
-                SELECT id FROM users
-                WHERE is_admin = 1 AND org_id = ?
-            )
-            AND u.id != ?
-        "#;
-
-    let emails: Vec<String> = sqlx::query_scalar(sql)
-        .bind(current_org.id)
-        .bind(idea_id)
-        .bind(current_org.id)
-        .bind(idea_id)
-        .bind(current_org.id)
-        .bind(user_id.unwrap_or(-1))
-        .fetch_all(db)
-        .await
-        .unwrap_or(vec![]);
+    let emails = notification_recipient_emails(db, current_org, user_id, idea_id).await;
 
     for email in emails {
         let message = Message::builder()
@@ -262,6 +245,133 @@ pub async fn notify_status_changed(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::notification_recipient_emails;
+    use crate::org::CurrentOrg;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    fn current_org(id: i64) -> CurrentOrg {
+        CurrentOrg {
+            id,
+            slug: format!("org-{id}"),
+            github_client_secret: None,
+            github_client_id: None,
+            accent_color: None,
+            logo_url: None,
+        }
+    }
+
+    async fn test_db() -> sqlx::SqlitePool {
+        let db = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                org_id INTEGER NOT NULL,
+                email TEXT NOT NULL,
+                is_admin INTEGER NOT NULL DEFAULT 0
+            )",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query(
+            "CREATE TABLE ideas (
+                id INTEGER PRIMARY KEY,
+                org_id INTEGER NOT NULL,
+                user_id INTEGER
+            )",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query(
+            "CREATE TABLE votes (
+                idea_id INTEGER NOT NULL,
+                user_id INTEGER
+            )",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+
+        db
+    }
+
+    #[tokio::test]
+    async fn notification_recipients_include_creator_voters_and_admins_once() {
+        let db = test_db().await;
+        sqlx::query(
+            "INSERT INTO users (id, org_id, email, is_admin) VALUES
+                (1, 1, 'creator@example.com', 0),
+                (2, 1, 'voter@example.com', 0),
+                (3, 1, 'admin@example.com', 1),
+                (4, 1, 'creator@example.com', 0),
+                (5, 2, 'other-org@example.com', 1)",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id) VALUES (10, 1, 1)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO votes (idea_id, user_id) VALUES (10, 2), (10, 4)")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        let mut emails = notification_recipient_emails(&db, &current_org(1), None, 10).await;
+        emails.sort();
+
+        assert_eq!(
+            emails,
+            vec![
+                "admin@example.com".to_string(),
+                "creator@example.com".to_string(),
+                "voter@example.com".to_string(),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn notification_recipients_exclude_the_triggering_user() {
+        let db = test_db().await;
+        sqlx::query(
+            "INSERT INTO users (id, org_id, email, is_admin) VALUES
+                (1, 1, 'creator@example.com', 0),
+                (2, 1, 'voter@example.com', 1),
+                (3, 1, 'admin@example.com', 1)",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id) VALUES (10, 1, 1)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO votes (idea_id, user_id) VALUES (10, 2)")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        let mut emails = notification_recipient_emails(&db, &current_org(1), Some(2), 10).await;
+        emails.sort();
+
+        assert_eq!(
+            emails,
+            vec![
+                "admin@example.com".to_string(),
+                "creator@example.com".to_string()
+            ]
+        );
+    }
 }
 
 #[derive(Template)]
