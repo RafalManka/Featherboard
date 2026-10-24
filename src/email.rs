@@ -151,16 +151,34 @@ pub async fn notify_comment_created(
     db: &SqlitePool,
     current_org: &CurrentOrg,
     email_client: &EmailClient,
+    user_id: Option<i64>,
+    idea_id: i64,
     template: NewCommentEmail,
 ) -> Result<(), AppError> {
     let sql = r#"
-           SELECT email
-           FROM users
-           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+           SELECT DISTINCT u.email
+           FROM users u
+           WHERE u.org_id = ?
+            AND u.id IN (
+                SELECT user_id FROM ideas
+                WHERE id = ? AND org_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM votes
+                WHERE idea_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT id FROM users
+                WHERE is_admin = 1 AND org_id = ?
+            )
+            AND u.id != ?
         "#;
 
     let emails: Vec<String> = sqlx::query_scalar(sql)
         .bind(current_org.id)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .bind(user_id.unwrap_or(-1))
         .fetch_all(db)
         .await
         .unwrap_or(vec![]);
@@ -190,19 +208,38 @@ pub struct StatusChangedEmail {
     pub idea_url: String,
 }
 pub async fn notify_status_changed(
+    user_id: Option<i64>,
+    idea_id: i64,
+
     db: &SqlitePool,
     current_org: &CurrentOrg,
     email_client: &EmailClient,
     template: StatusChangedEmail,
 ) -> Result<(), AppError> {
     let sql = r#"
-           SELECT email
-           FROM users
-           WHERE is_admin = 1 AND email IS NOT NULL AND org_id = ?
+           SELECT DISTINCT u.email
+           FROM users u
+           WHERE u.org_id = ?
+            AND u.id IN (
+                SELECT user_id FROM ideas
+                WHERE id = ? AND org_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM votes
+                WHERE idea_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT id FROM users
+                WHERE is_admin = 1 AND org_id = ?
+            )
+            AND u.id != ?
         "#;
 
     let emails: Vec<String> = sqlx::query_scalar(sql)
         .bind(current_org.id)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .bind(user_id.unwrap_or(-1))
         .fetch_all(db)
         .await
         .unwrap_or(vec![]);

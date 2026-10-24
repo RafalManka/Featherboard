@@ -77,12 +77,16 @@ async fn update_status(
         .execute(&state.db)
         .await?;
 
+    let author_id = session.get::<i64>("user_id").await?;
+
     if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
         let idea_title = get_idea_title(&state.db, &current_org, id_path.id).await?;
         let idea_url = current_org.path(&format!("/ideas/{}", id_path.id));
         let idea_url = format!("{}{}", public_url, idea_url);
         let new_status = status.label().to_string();
         notify_status_changed(
+            author_id,
+            id_path.id,
             &state.db,
             &current_org,
             &email_client,

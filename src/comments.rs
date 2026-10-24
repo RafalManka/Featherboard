@@ -161,6 +161,8 @@ async fn create_comment(
             &state.db,
             &current_org,
             &email_client,
+            author_id,
+            id_param.id,
             NewCommentEmail {
                 idea_title,
                 author_name,
