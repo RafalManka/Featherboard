@@ -111,7 +111,7 @@ async fn user_can_update_notification_preferences() {
     let cookie = session_cookie(&db, 1).await;
     let app = app_router(db.clone(), session_store(&db).await, None, None);
     let request = axum::http::Request::builder()
-        .uri("/default/notifications")
+        .uri("/default/settings/user/notifications")
         .method("POST")
         .header("Cookie", format!("id={cookie}"))
         .header("Content-Type", "application/x-www-form-urlencoded")

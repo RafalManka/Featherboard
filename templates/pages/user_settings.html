@@ -1,16 +1,22 @@
 {% extends "pages/base.html" %}
 
-{% block title %}Notifications{% endblock %}
+{% block title %}User settings{% endblock %}
 {% block body_class %}wide{% endblock %}
 
 {% block content %}
 <div class="settings-layout">
+    <aside class="settings-sidebar">
+        <p class="settings-eyebrow">User Settings</p>
+        <nav class="settings-nav" aria-label="Settings sections">
+            <a href="#notifications">Notifications</a>
+        </nav>
+    </aside>
+
     <main class="settings-main">
         <h1>Notifications</h1>
         <p class="settings-intro">Choose which activity updates you receive by email.</p>
-
-        <section class="settings-card">
-            <form method="post" action="/{{ layout.org_slug }}/notifications">
+        <section id="notifications" class="settings-card">
+            <form method="post" action="/{{ layout.org_slug }}/settings/user/notifications">
                 <label>
                     <input type="checkbox" name="notify_comments" {% if notify_comments %}checked{% endif %}>
                     New comments on ideas you follow

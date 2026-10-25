@@ -709,7 +709,9 @@ a {
    a third section costs exactly one more comma-separated line here,
    nothing else. */
 body:not(:has(:target)) .settings-nav a[href="#billing"],
+body:not(:has(:target)) .settings-nav a[href="#notifications"],
 body:has(#billing:target) .settings-nav a[href="#billing"],
+body:has(#notifications:target) .settings-nav a[href="#notifications"],
 body:has(#branding:target) .settings-nav a[href="#branding"],
 body:has(#github:target) .settings-nav a[href="#github"] {
     background: var(--accent-tint);

@@ -12,21 +12,21 @@ use axum::{Form, Router};
 use serde::Deserialize;
 use tower_sessions::Session;
 
-pub fn notifications_router() -> Router<AppState> {
+pub fn user_settings_router() -> Router<AppState> {
     Router::new()
-        .route("/notifications", get(get_notifications))
+        .route("/", get(get_user_settings))
         .route("/notifications", post(set_notifications))
 }
 
 #[derive(Template)]
-#[template(path = "pages/notifications.html")]
-struct NotificationsTemplate {
+#[template(path = "pages/user_settings.html")]
+struct UserSettingsTemplate {
     layout: Layout,
     notify_comments: bool,
     notify_status_changes: bool,
 }
 
-async fn get_notifications(
+async fn get_user_settings(
     State(state): State<AppState>,
     current_org: CurrentOrg,
     session: Session,
@@ -49,7 +49,7 @@ async fn get_notifications(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(HtmlTemplate(NotificationsTemplate {
+    Ok(HtmlTemplate(UserSettingsTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
         notify_comments: preferences.0,
         notify_status_changes: preferences.1,
@@ -89,5 +89,5 @@ async fn set_notifications(
     .execute(&state.db)
     .await?;
 
-    Ok(current_org.redirect("/notifications").into_response())
+    Ok(current_org.redirect("/settings/user").into_response())
 }

@@ -134,7 +134,7 @@ async fn handle_invoice_paid(
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let subscription_url = format!("{}{}", public_url, current_org.path("/settings"));
+    let subscription_url = format!("{}{}", public_url, current_org.path("/settings/site"));
 
     notify_payment_success(
         db,
@@ -190,7 +190,7 @@ async fn handle_invoice_payment_failed(
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let payment_url = format!("{}{}", public_url, current_org.path("/settings"));
+    let payment_url = format!("{}{}", public_url, current_org.path("/settings/site"));
 
     notify_payment_failed(
         db,
