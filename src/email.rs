@@ -171,16 +171,29 @@ pub struct StatusChangedEmail {
     pub idea_url: String,
 }
 
+#[derive(Clone, Copy)]
+enum NotificationKind {
+    Comments,
+    StatusChanges,
+}
+
 async fn notification_recipient_emails(
     db: &SqlitePool,
     current_org: &CurrentOrg,
     user_id: Option<i64>,
     idea_id: i64,
+    kind: NotificationKind,
 ) -> Vec<String> {
-    let sql = r#"
+    let preference_column = match kind {
+        NotificationKind::Comments => "u.notify_comments",
+        NotificationKind::StatusChanges => "u.notify_status_changes",
+    };
+    let sql = format!(
+        r#"
            SELECT DISTINCT u.email
            FROM users u
            WHERE u.org_id = ?
+            AND {preference_column} = 1
             AND u.id IN (
                 SELECT user_id FROM ideas
                 WHERE id = ? AND org_id = ? AND user_id IS NOT NULL
@@ -192,9 +205,10 @@ async fn notification_recipient_emails(
                 WHERE is_admin = 1 AND org_id = ?
             )
             AND u.id != ?
-        "#;
+        "#
+    );
 
-    sqlx::query_scalar(sql)
+    sqlx::query_scalar(&sql)
         .bind(current_org.id)
         .bind(idea_id)
         .bind(current_org.id)
@@ -227,8 +241,14 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         idea_id: i64,
         template: NewCommentEmail,
     ) -> Result<(), AppError> {
-        let emails =
-            notification_recipient_emails(self.db, self.current_org, user_id, idea_id).await;
+        let emails = notification_recipient_emails(
+            self.db,
+            self.current_org,
+            user_id,
+            idea_id,
+            NotificationKind::Comments,
+        )
+        .await;
 
         for email in emails {
             let message = Message::builder()
@@ -253,8 +273,14 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         idea_id: i64,
         template: StatusChangedEmail,
     ) -> Result<(), AppError> {
-        let emails =
-            notification_recipient_emails(self.db, self.current_org, user_id, idea_id).await;
+        let emails = notification_recipient_emails(
+            self.db,
+            self.current_org,
+            user_id,
+            idea_id,
+            NotificationKind::StatusChanges,
+        )
+        .await;
 
         for email in emails {
             let message = Message::builder()
@@ -280,7 +306,8 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
 #[cfg(test)]
 mod tests {
     use super::{
-        EmailNotifier, Mailer, NewCommentEmail, StatusChangedEmail, notification_recipient_emails,
+        EmailNotifier, Mailer, NewCommentEmail, NotificationKind, StatusChangedEmail,
+        notification_recipient_emails,
     };
     use crate::org::CurrentOrg;
     use lettre::Message;
@@ -309,7 +336,9 @@ mod tests {
                 id INTEGER PRIMARY KEY,
                 org_id INTEGER NOT NULL,
                 email TEXT NOT NULL,
-                is_admin INTEGER NOT NULL DEFAULT 0
+                is_admin INTEGER NOT NULL DEFAULT 0,
+                notify_comments INTEGER NOT NULL DEFAULT 1,
+                notify_status_changes INTEGER NOT NULL DEFAULT 1
             )",
         )
         .execute(&db)
@@ -363,7 +392,14 @@ mod tests {
             .await
             .unwrap();
 
-        let mut emails = notification_recipient_emails(&db, &current_org(1), None, 10).await;
+        let mut emails = notification_recipient_emails(
+            &db,
+            &current_org(1),
+            None,
+            10,
+            NotificationKind::Comments,
+        )
+        .await;
         emails.sort();
 
         assert_eq!(
@@ -399,7 +435,14 @@ mod tests {
             .await
             .unwrap();
 
-        let mut emails = notification_recipient_emails(&db, &current_org(1), Some(2), 10).await;
+        let mut emails = notification_recipient_emails(
+            &db,
+            &current_org(1),
+            Some(2),
+            10,
+            NotificationKind::Comments,
+        )
+        .await;
         emails.sort();
 
         assert_eq!(

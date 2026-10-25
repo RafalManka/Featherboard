@@ -96,3 +96,35 @@ async fn admin_status_change_persists_through_the_router() {
         .unwrap();
     assert_eq!(status, "planned");
 }
+
+#[tokio::test]
+async fn user_can_update_notification_preferences() {
+    let db = test_db().await;
+    sqlx::query(
+        "INSERT INTO users (id, org_id, provider, provider_user_id, email, name, is_admin)
+         VALUES (1, 1, 'github', '1', 'user@example.com', 'User', 0)",
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+
+    let cookie = session_cookie(&db, 1).await;
+    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let request = axum::http::Request::builder()
+        .uri("/default/notifications")
+        .method("POST")
+        .header("Cookie", format!("id={cookie}"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(axum::body::Body::from("notify_comments=on"))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+    let preferences: (bool, bool) =
+        sqlx::query_as("SELECT notify_comments, notify_status_changes FROM users WHERE id = 1")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+    assert_eq!(preferences, (true, false));
+}

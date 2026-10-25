@@ -1,0 +1,27 @@
+{% extends "pages/base.html" %}
+
+{% block title %}Notifications{% endblock %}
+{% block body_class %}wide{% endblock %}
+
+{% block content %}
+<div class="settings-layout">
+    <main class="settings-main">
+        <h1>Notifications</h1>
+        <p class="settings-intro">Choose which activity updates you receive by email.</p>
+
+        <section class="settings-card">
+            <form method="post" action="/{{ layout.org_slug }}/notifications">
+                <label>
+                    <input type="checkbox" name="notify_comments" {% if notify_comments %}checked{% endif %}>
+                    New comments on ideas you follow
+                </label>
+                <label>
+                    <input type="checkbox" name="notify_status_changes" {% if notify_status_changes %}checked{% endif %}>
+                    Status changes on ideas you follow
+                </label>
+                <button type="submit">Save preferences</button>
+            </form>
+        </section>
+    </main>
+</div>
+{% endblock %}

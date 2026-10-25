@@ -30,6 +30,7 @@ pub mod error;
 pub mod ideas;
 pub mod login;
 pub mod models;
+pub mod notifications;
 pub mod org;
 pub mod settings;
 pub mod static_assets;
@@ -92,6 +93,7 @@ fn org_router() -> Router<AppState> {
         .nest("/auth", auth_router())
         .nest("/subscriptions", subscriptions_router())
         .nest("/settings", settings_router())
+        .merge(notifications::notifications_router())
         .merge(login_router())
 }
 
