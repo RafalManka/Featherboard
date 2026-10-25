@@ -17,13 +17,15 @@
         <p class="settings-intro">Choose which activity updates you receive by email.</p>
         <section id="notifications" class="settings-card">
             <form method="post" action="/{{ layout.org_slug }}/settings/user/notifications">
-                <label>
+                <label class="settings-switch-row">
+                    New comments
                     <input type="checkbox" name="notify_comments" {% if notify_comments %}checked{% endif %}>
-                    New comments on ideas you follow
+                    <span class="settings-switch" aria-hidden="true"><span></span></span>
                 </label>
-                <label>
+                <label class="settings-switch-row">
+                    Status changes
                     <input type="checkbox" name="notify_status_changes" {% if notify_status_changes %}checked{% endif %}>
-                    Status changes on ideas you follow
+                    <span class="settings-switch" aria-hidden="true"><span></span></span>
                 </label>
                 <button type="submit">Save preferences</button>
             </form>

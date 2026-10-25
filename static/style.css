@@ -763,7 +763,7 @@ body:has(#github:target) .settings-nav a[href="#github"] {
 }
 
 .settings-card form {
-    margin-top: 1rem;
+    margin-top: 0.2rem;
 }
 
 /* Same visual language as .idea-form's inputs (submit-idea/comment
@@ -777,6 +777,63 @@ body:has(#github:target) .settings-nav a[href="#github"] {
     margin-bottom: 0.75rem;
     font-size: 0.85rem;
     font-weight: 600;
+}
+
+.settings-card form .settings-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.settings-card form .settings-switch-row:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.settings-switch-row input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.settings-switch {
+    display: flex;
+    align-items: center;
+    width: 2.625rem;
+    height: 1.5rem;
+    padding: 0.1875rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background-color 150ms ease;
+}
+
+.settings-switch span {
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background: var(--surface, #fff);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
+    transition: transform 150ms ease;
+}
+
+.settings-switch-row input:checked + .settings-switch {
+    background: var(--accent);
+}
+
+.settings-switch-row input:checked + .settings-switch span {
+    transform: translateX(1.125rem);
+}
+
+.settings-switch-row input:focus-visible + .settings-switch {
+    outline: 3px solid var(--accent-tint);
+    outline-offset: 2px;
 }
 
 .settings-card form input[type="text"],
