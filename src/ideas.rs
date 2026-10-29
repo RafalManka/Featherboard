@@ -442,9 +442,13 @@ async fn vote(
             .await?;
         false
     } else {
-        sqlx::query("INSERT INTO votes (idea_id, voter_id) VALUES (?, ?)")
+        let user_id = session.get::<i64>("user_id").await?;
+        let user_id = get_org_user_id(&state.db, &current_org, user_id).await?;
+
+        sqlx::query("INSERT INTO votes (idea_id, voter_id, user_id) VALUES (?, ?, ?)")
             .bind(id.id)
             .bind(&voter_id)
+            .bind(&user_id)
             .execute(&state.db)
             .await?;
         true
@@ -556,12 +560,16 @@ async fn create_idea(
             .into_response());
     }
 
+    let user_id = session.get::<i64>("user_id").await?;
+    let user_id = get_org_user_id(&state.db, &current_org, user_id).await?;
+
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO ideas (org_id, title, description) VALUES (?, ?, ?) RETURNING id",
+        "INSERT INTO ideas (org_id, title, description, user_id) VALUES (?, ?, ?, ?) RETURNING id",
     )
     .bind(current_org.id)
     .bind(&title)
     .bind(&description)
+    .bind(&user_id)
     .fetch_one(&state.db)
     .await?;
 
@@ -586,4 +594,26 @@ pub async fn get_idea_title(
         .fetch_one(db)
         .await?;
     Ok(result)
+}
+
+async fn get_org_user_id(
+    db: &SqlitePool,
+    current_org: &CurrentOrg,
+    user_id: Option<i64>,
+) -> Result<Option<i64>, AppError> {
+    if let Some(author_id) = user_id {
+        let sql = r#"
+            SELECT id
+            FROM users
+            WHERE id = ? AND org_id = ?
+        "#;
+        let result: Option<i64> = sqlx::query_scalar(sql)
+            .bind(author_id)
+            .bind(current_org.id)
+            .fetch_optional(db)
+            .await?;
+        return Ok(result);
+    }
+
+    Ok(None)
 }

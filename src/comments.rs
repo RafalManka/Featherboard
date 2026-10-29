@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::email::{NewCommentEmail, notify_comment_created};
+use crate::email::{EmailNotifier, NewCommentEmail};
 use crate::error::AppError;
 use crate::ideas::get_idea_title;
 use crate::models::Comment;
@@ -157,18 +157,18 @@ async fn create_comment(
 
         let idea_url = current_org.path(&format!("/ideas/{}", id_param.id));
         let idea_url = format!("{}{}", public_url, idea_url);
-        notify_comment_created(
-            &state.db,
-            &current_org,
-            &email_client,
-            NewCommentEmail {
-                idea_title,
-                author_name,
-                comment_body,
-                idea_url,
-            },
-        )
-        .await?;
+        EmailNotifier::new(&state.db, &current_org, &email_client)
+            .comment_created(
+                author_id,
+                id_param.id,
+                NewCommentEmail {
+                    idea_title,
+                    author_name,
+                    comment_body,
+                    idea_url,
+                },
+            )
+            .await?;
     }
 
     Ok(current_org

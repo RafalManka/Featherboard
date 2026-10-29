@@ -65,7 +65,7 @@ async fn canceled_subscription_shows_subscribe_form() {
     let app = app_router(db, session_layer, None, None);
 
     let request = axum::http::Request::builder()
-        .uri("/default/settings")
+        .uri("/default/settings/site")
         .header("Cookie", format!("id={session_id}"))
         .body(axum::body::Body::empty())
         .unwrap();

@@ -38,7 +38,7 @@ async fn non_admin_is_forbidden_on_both_subscription_routes() {
     let app = app_router(db, session_layer, None, None);
 
     let settings_request = axum::http::Request::builder()
-        .uri("/default/settings")
+        .uri("/default/settings/site")
         .header("Cookie", format!("id={session_id}"))
         .body(axum::body::Body::empty())
         .unwrap();
@@ -80,7 +80,7 @@ async fn admin_can_render_settings_page() {
 
     let app = app_router(db, session_layer, None, None);
     let request = axum::http::Request::builder()
-        .uri("/default/settings")
+        .uri("/default/settings/site")
         .header("Cookie", format!("id={session_id}"))
         .body(axum::body::Body::empty())
         .unwrap();

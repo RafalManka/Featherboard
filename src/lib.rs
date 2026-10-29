@@ -31,10 +31,12 @@ pub mod ideas;
 pub mod login;
 pub mod models;
 pub mod org;
-pub mod settings;
+mod settings;
+pub mod site_settings;
 pub mod static_assets;
 pub mod subscription;
 pub mod templates;
+pub mod user_settings;
 pub mod validation;
 pub mod webhooks;
 

@@ -86,5 +86,5 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
         .unwrap()
         .to_str()
         .unwrap();
-    assert_eq!(location, "/default/settings");
+    assert_eq!(location, "/default/settings/site");
 }

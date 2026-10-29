@@ -6,7 +6,7 @@
 {% block content %}
 <div class="settings-layout">
     <aside class="settings-sidebar">
-        <p class="settings-eyebrow">Settings</p>
+        <p class="settings-eyebrow">Site settings</p>
         <nav class="settings-nav" aria-label="Settings sections">
             <a href="#billing">Billing</a>
             <a href="#branding">Branding</a>
@@ -47,7 +47,7 @@
 
         <section id="branding" class="settings-card">
             <h2>Branding</h2>
-            <form method="post" action="/{{ layout.org_slug }}/settings/branding">
+            <form method="post" action="/{{ layout.org_slug }}/settings/site/branding">
                 <label>
                     Accent color
                     <input type="text" name="accent_color" value="{{ layout.accent_color.as_deref().unwrap_or("") }}">
@@ -62,7 +62,7 @@
 
         <section id="github" class="settings-card">
             <h2>Github</h2>
-            <form method="post" action="/{{ layout.org_slug }}/settings/github">
+            <form method="post" action="/{{ layout.org_slug }}/settings/site/github">
                 <label>
                     Client ID
                     <input type="text" name="github_client_id" value="{{ github.github_client_id }}">

@@ -41,7 +41,7 @@ async fn subscriptions_portal(
         return Ok(StatusCode::NOT_FOUND.into_response());
     };
 
-    let return_url = format!("{}{}", public_url, current_org.path("/settings"));
+    let return_url = format!("{}{}", public_url, current_org.path("/settings/site"));
 
     let form = [("return_url", return_url), ("customer", stripe_customer_id)];
 
@@ -115,11 +115,11 @@ async fn stripe_checkout(
     };
 
     if has_ongoing_subscription(&state.db, current_org.id).await? {
-        return Ok(current_org.redirect("/settings").into_response());
+        return Ok(current_org.redirect("/settings/site").into_response());
     }
 
-    let success_url = format!("{}{}", public_url, current_org.path("/settings"));
-    let cancel_url = format!("{}{}", public_url, current_org.path("/settings"));
+    let success_url = format!("{}{}", public_url, current_org.path("/settings/site"));
+    let cancel_url = format!("{}{}", public_url, current_org.path("/settings/site"));
 
     let form = [
         ("success_url", success_url),
