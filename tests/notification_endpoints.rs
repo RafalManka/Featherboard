@@ -115,16 +115,19 @@ async fn user_can_update_notification_preferences() {
         .method("POST")
         .header("Cookie", format!("id={cookie}"))
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(axum::body::Body::from("notify_comments=on"))
+        .body(axum::body::Body::from(
+            "notify_comments=on&notify_shipped=on",
+        ))
         .unwrap();
 
     let response = app.oneshot(request).await.unwrap();
 
     assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
-    let preferences: (bool, bool) =
-        sqlx::query_as("SELECT notify_comments, notify_status_changes FROM users WHERE id = 1")
-            .fetch_one(&db)
-            .await
-            .unwrap();
-    assert_eq!(preferences, (true, false));
+    let preferences: (bool, bool, bool) = sqlx::query_as(
+        "SELECT notify_comments, notify_status_changes, notify_shipped FROM users WHERE id = 1",
+    )
+    .fetch_one(&db)
+    .await
+    .unwrap();
+    assert_eq!(preferences, (true, false, true));
 }
