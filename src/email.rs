@@ -171,6 +171,13 @@ pub struct StatusChangedEmail {
     pub idea_url: String,
 }
 
+#[derive(Template)]
+#[template(path = "emails/changelog_shipped.html")]
+pub struct ChangelogShippedEmail {
+    pub changelog_title: String,
+    pub changelog_url: String,
+}
+
 #[derive(Clone, Copy)]
 enum NotificationKind {
     Comments,
@@ -301,13 +308,65 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
 
         Ok(())
     }
+
+    pub async fn changelog_shipped(
+        &self,
+        user_id: Option<i64>,
+        changelog_id: i64,
+        template: ChangelogShippedEmail,
+    ) -> Result<(), AppError> {
+        let sql = r#"
+           SELECT DISTINCT u.email
+           FROM users u
+           WHERE u.org_id = ?
+            AND u.notify_shipped = 1
+            AND u.id IN (
+                SELECT user_id FROM ideas
+                WHERE changelog_id = ? AND org_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM votes
+                WHERE idea_id IN (SELECT id FROM ideas WHERE changelog_id = ? AND org_id = ?)
+            )
+            AND u.id != ?
+        "#;
+
+        let emails = sqlx::query_scalar::<_, String>(&sql)
+            .bind(self.current_org.id)
+            .bind(changelog_id)
+            .bind(self.current_org.id)
+            .bind(changelog_id)
+            .bind(self.current_org.id)
+            .bind(user_id.unwrap_or(-1))
+            .fetch_all(self.db)
+            .await
+            .unwrap_or_default();
+
+        for email in emails {
+            let message = Message::builder()
+                .from(Mailbox::new(
+                    Some(self.current_org.slug.clone()),
+                    self.email_client.sender().parse()?,
+                ))
+                .to(Mailbox::new(None, email.parse()?))
+                .subject(format!(
+                    "Your feedback is now shipped: {}",
+                    template.changelog_title
+                ))
+                .header(ContentType::TEXT_HTML)
+                .body(template.render()?)?;
+
+            _ = self.email_client.send(&message);
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        EmailNotifier, Mailer, NewCommentEmail, NotificationKind, StatusChangedEmail,
-        notification_recipient_emails,
+        ChangelogShippedEmail, EmailNotifier, Mailer, NewCommentEmail, NotificationKind,
+        StatusChangedEmail, notification_recipient_emails,
     };
     use crate::org::CurrentOrg;
     use lettre::Message;
@@ -338,7 +397,8 @@ mod tests {
                 email TEXT NOT NULL,
                 is_admin INTEGER NOT NULL DEFAULT 0,
                 notify_comments INTEGER NOT NULL DEFAULT 1,
-                notify_status_changes INTEGER NOT NULL DEFAULT 1
+                notify_status_changes INTEGER NOT NULL DEFAULT 1,
+                notify_shipped INTEGER NOT NULL DEFAULT 1
             )",
         )
         .execute(&db)
@@ -348,7 +408,8 @@ mod tests {
             "CREATE TABLE ideas (
                 id INTEGER PRIMARY KEY,
                 org_id INTEGER NOT NULL,
-                user_id INTEGER
+                user_id INTEGER,
+                changelog_id INTEGER
             )",
         )
         .execute(&db)
@@ -356,8 +417,21 @@ mod tests {
         .unwrap();
         sqlx::query(
             "CREATE TABLE votes (
+                id INTEGER PRIMARY KEY,
                 idea_id INTEGER NOT NULL,
                 user_id INTEGER
+            )",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "CREATE TABLE changelogs (
+                id INTEGER PRIMARY KEY,
+                org_id INTEGER NOT NULL,
+                title TEXT,
+                description TEXT
             )",
         )
         .execute(&db)
@@ -569,6 +643,75 @@ mod tests {
         assert_eq!(
             email_client.recipients(),
             vec!["creator@example.com", "other-admin@example.com"]
+        );
+    }
+
+    //noinspection SqlResolve
+    //noinspection SqlInsertValues
+    #[tokio::test]
+    async fn shipped_notifier_sends_to_submitters_and_voters() {
+        let email_client = FakeEmailer::new();
+
+        let db = test_db().await;
+
+        sqlx::query(
+            "INSERT INTO users (id, org_id, email, is_admin, notify_shipped) VALUES
+                (1, 1, 'user.one@example.com', 0, 1),
+                (2, 1, 'user.two@example.com', 1, 1),
+                (3, 1, 'user-three@example.com', 1, 1),
+                (4, 1, 'user-four@example.com', 1, 1),
+                (5, 1, 'user-five@example.com', 1, 0),
+                (6, 2, 'user-six@example.com', 1, 1)",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id, changelog_id) VALUES (10, 1, 1, 30)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id, changelog_id) VALUES (11, 1, 2, 30)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO ideas (id, org_id, user_id, changelog_id) VALUES (12, 2, 6, 30)")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO votes (id, idea_id, user_id) VALUES (20, 10, 2)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO votes (id, idea_id, user_id) VALUES (21, 10, 3)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO votes (id, idea_id, user_id) VALUES (22, 10, 5)")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO changelogs (id, org_id, title, description) VALUES (30, 1, 'Test changelog', 'This is a test changelog')")
+            .execute(&db)
+            .await
+            .unwrap();
+
+        EmailNotifier::new(&db, &current_org(1), &email_client)
+            .changelog_shipped(
+                Some(3),
+                30,
+                ChangelogShippedEmail {
+                    changelog_title: "Test changelog".into(),
+                    changelog_url: "/default/changelog/30".into(),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            email_client.recipients(),
+            vec!["user.one@example.com", "user.two@example.com"]
         );
     }
 }
