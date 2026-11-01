@@ -1,6 +1,8 @@
 mod common;
 
 use crate::common::test_db;
+use axum::body::Body;
+use axum::http::Request;
 use featherboard::{app_router, session_store};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -130,4 +132,86 @@ async fn user_can_update_notification_preferences() {
     .await
     .unwrap();
     assert_eq!(preferences, (true, false, true));
+}
+
+#[tokio::test]
+async fn admin_can_assign_idea_to_changelog() {
+    let db = test_db().await;
+    sqlx::query(
+        r#"
+        INSERT INTO users (id, org_id, provider, provider_user_id, email, name, is_admin)
+        VALUES (1, 1, 'github', '1', 'user@example.com', 'User', 1);
+
+        INSERT INTO changelogs (id, org_id, title, description)
+        VALUES
+            (10, 1, 'Example changelog', 'Example changelog description'),
+            (11, 1, 'Second changelog', 'Second changelog description');
+
+        INSERT INTO ideas (id, org_id, title, description)
+        VALUES (20, 1, 'Example idea', 'Example idea description');
+        "#,
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+
+    let cookie = session_cookie(&db, 1).await;
+    let app = app_router(db.clone(), session_store(&db).await, None, None);
+
+    let make_request = |body: &str| {
+        Request::builder()
+            .uri("/default/ideas/20/changelog")
+            .method("POST")
+            .header("Cookie", format!("id={cookie}"))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(Body::from(body.to_owned()))
+            .unwrap()
+    };
+
+    let response = app
+        .clone()
+        .oneshot(make_request("changelog_id=10"))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+    let changelog_id: i64 = sqlx::query_scalar("SELECT changelog_id FROM ideas WHERE id = 20")
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(changelog_id, 10);
+
+    let response = app
+        .clone()
+        .oneshot(make_request("changelog_id=10"))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+    let changelog_id: i64 = sqlx::query_scalar("SELECT changelog_id FROM ideas WHERE id = 20")
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(changelog_id, 10);
+
+    let response = app
+        .clone()
+        .oneshot(make_request("changelog_id=11"))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+    let changelog_id: i64 = sqlx::query_scalar("SELECT changelog_id FROM ideas WHERE id = 20")
+        .fetch_one(&db)
+        .await
+        .unwrap();
+    assert_eq!(changelog_id, 11);
+
+    let response = app.oneshot(make_request("changelog_id=")).await.unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+
+    let changelog_id: Option<i64> =
+        sqlx::query_scalar("SELECT changelog_id FROM ideas WHERE id = 20")
+            .fetch_one(&db)
+            .await
+            .unwrap();
+
+    assert_eq!(changelog_id, None);
 }

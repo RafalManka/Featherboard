@@ -1,5 +1,6 @@
 use crate::AppState;
-use crate::email::{EmailNotifier, StatusChangedEmail};
+use crate::auth::get_user_id;
+use crate::email::{ChangelogShippedEmail, EmailNotifier, StatusChangedEmail};
 use crate::error::AppError;
 use crate::ideas::get_idea_title;
 use crate::models::IdeaStatus;
@@ -109,7 +110,7 @@ pub struct AssignChangelogForm {
 
 async fn assign_changelog(
     State(state): State<AppState>,
-    Path(id_path): Path<IdParam>,
+    Path(idea_path_param): Path<IdParam>,
     current_org: CurrentOrg,
     session: Session,
     Form(form): Form<AssignChangelogForm>,
@@ -117,6 +118,8 @@ async fn assign_changelog(
     if !is_admin(&state.db, &session, current_org.id).await? {
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
+
+    let idea_id = idea_path_param.id;
 
     let changelog_id: Option<i64> = if form.changelog_id.is_empty() {
         None
@@ -128,6 +131,16 @@ async fn assign_changelog(
     };
 
     let sql = r#"
+        SELECT changelog_id FROM ideas WHERE id = ? AND org_id = ?
+    "#;
+
+    let previous_changelog_id: Option<i64> = sqlx::query_scalar::<_, Option<i64>>(sql)
+        .bind(idea_id)
+        .bind(current_org.id)
+        .fetch_one(&state.db)
+        .await?;
+
+    let sql = r#"
         UPDATE ideas
         SET changelog_id = ?
         WHERE id = ? AND org_id = ?
@@ -135,13 +148,48 @@ async fn assign_changelog(
 
     sqlx::query(sql)
         .bind(changelog_id)
-        .bind(id_path.id)
+        .bind(idea_id)
         .bind(current_org.id)
         .execute(&state.db)
         .await?;
 
+    if previous_changelog_id.is_none()
+        && changelog_id.is_some()
+        && let (Some(email_client), Some(public_url), Some(changelog_id)) =
+            (state.email_client, state.public_url, changelog_id)
+    {
+        let sql = r#"
+            SELECT title
+            FROM changelogs
+            WHERE id = ? AND org_id = ?
+        "#;
+
+        let changelog_title = sqlx::query_scalar::<_, String>(sql)
+            .bind(changelog_id)
+            .bind(current_org.id)
+            .fetch_one(&state.db)
+            .await?;
+
+        let author_id = get_user_id(&session).await?;
+
+        let path = format!("/changelogs/{}", changelog_id);
+        let changelog_url = current_org.path(&path);
+        let changelog_url = format!("{}{}", public_url, changelog_url);
+
+        EmailNotifier::new(&state.db, &current_org, &email_client)
+            .changelog_shipped(
+                author_id,
+                changelog_id,
+                ChangelogShippedEmail {
+                    changelog_title,
+                    changelog_url,
+                },
+            )
+            .await?;
+    }
+
     Ok(current_org
-        .redirect(&format!("/ideas/{}", id_path.id))
+        .redirect(&format!("/ideas/{}", idea_id))
         .into_response())
 }
 
