@@ -24,6 +24,7 @@ struct UserSettingsTemplate {
     layout: Layout,
     notify_comments: bool,
     notify_status_changes: bool,
+    notify_shipped: bool,
 }
 
 async fn get_user_settings(
@@ -39,8 +40,8 @@ async fn get_user_settings(
         return Ok(StatusCode::FORBIDDEN.into_response());
     };
 
-    let preferences: (bool, bool) = sqlx::query_as(
-        "SELECT notify_comments, notify_status_changes
+    let preferences: (bool, bool, bool) = sqlx::query_as(
+        "SELECT notify_comments, notify_status_changes, notify_shipped
          FROM users
          WHERE id = ? AND org_id = ?",
     )
@@ -53,6 +54,7 @@ async fn get_user_settings(
         layout: Layout::load(&state.db, &current_org, &session).await?,
         notify_comments: preferences.0,
         notify_status_changes: preferences.1,
+        notify_shipped: preferences.2,
     })
     .into_response())
 }
@@ -61,6 +63,7 @@ async fn get_user_settings(
 struct NotificationsForm {
     notify_comments: Option<String>,
     notify_status_changes: Option<String>,
+    notify_shipped: Option<String>,
 }
 
 async fn set_notifications(
@@ -79,11 +82,12 @@ async fn set_notifications(
 
     sqlx::query(
         "UPDATE users
-         SET notify_comments = ?, notify_status_changes = ?
+         SET notify_comments = ?, notify_status_changes = ?, notify_shipped = ?
          WHERE id = ? AND org_id = ?",
     )
     .bind(form.notify_comments.is_some())
     .bind(form.notify_status_changes.is_some())
+    .bind(form.notify_shipped.is_some())
     .bind(user_id)
     .bind(current_org.id)
     .execute(&state.db)

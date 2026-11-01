@@ -27,6 +27,11 @@
                     <input type="checkbox" name="notify_status_changes" {% if notify_status_changes %}checked{% endif %}>
                     <span class="settings-switch" aria-hidden="true"><span></span></span>
                 </label>
+                <label class="settings-switch-row">
+                    Ideas you follow are shipped
+                    <input type="checkbox" name="notify_shipped" {% if notify_shipped %}checked{% endif %}>
+                    <span class="settings-switch" aria-hidden="true"><span></span></span>
+                </label>
                 <button type="submit">Save preferences</button>
             </form>
         </section>

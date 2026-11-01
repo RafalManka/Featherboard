@@ -1,5 +1,5 @@
 use crate::admin::is_admin;
-use crate::email::{ChangelogCreatedEmail, notify_changelog_created};
+use crate::email::{ChangelogCreatedEmail, EmailNotifier};
 use crate::error::AppError;
 use crate::models::{Changelog, Idea};
 use crate::org::CurrentOrg;
@@ -112,17 +112,13 @@ async fn create_changelog(
         let changelog_url = current_org.path(&path);
         let changelog_url = format!("{}{}", public_url, changelog_url);
 
-        notify_changelog_created(
-            &state.db,
-            &current_org,
-            &email_client,
-            ChangelogCreatedEmail {
-                changelog_title,
+        EmailNotifier::new(&state.db, &current_org, &email_client)
+            .changelog_created(ChangelogCreatedEmail {
+                changelog_title: changelog_title.clone(),
                 changelog_body,
-                changelog_url,
-            },
-        )
-        .await?;
+                changelog_url: changelog_url.clone(),
+            })
+            .await?;
     }
 
     Ok(current_org.redirect(&path).into_response())
