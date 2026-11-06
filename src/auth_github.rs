@@ -147,7 +147,7 @@ async fn auth_github_callback(
     let sql = r#"
         INSERT INTO users (org_id, provider, provider_user_id, email, name)
         VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (provider, provider_user_id) DO UPDATE SET
+        ON CONFLICT (org_id, provider, provider_user_id) DO UPDATE SET
             email = excluded.email,
             name = excluded.name
         RETURNING id

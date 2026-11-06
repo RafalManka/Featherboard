@@ -192,6 +192,14 @@ enum NotificationKind {
     StatusChanges,
 }
 
+#[derive(Template)]
+#[template(path = "emails/magic_link.html")]
+pub struct MagicLinkEmail {
+    pub email: String,
+    pub code: String,
+    pub link: String,
+}
+
 async fn notification_recipient_emails(
     db: &SqlitePool,
     current_org: &CurrentOrg,
@@ -278,6 +286,22 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
 
             _ = self.email_client.send(&message);
         }
+
+        Ok(())
+    }
+
+    pub async fn magic_link(&self, template: MagicLinkEmail) -> Result<(), AppError> {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(self.current_org.slug.clone()),
+                self.email_client.sender().parse()?,
+            ))
+            .to(Mailbox::new(None, template.email.parse()?))
+            .subject(format!("Confirmation code for: {}", template.email))
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        _ = self.email_client.send(&message);
 
         Ok(())
     }
