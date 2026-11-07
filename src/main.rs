@@ -4,7 +4,9 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::env;
 use std::io::IsTerminal;
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
+use featherboard::auth_github::GithubClientImpl;
 
 #[tokio::main]
 async fn main() {
@@ -42,7 +44,9 @@ async fn main() {
         .ok()
         .map(|e| e.trim_end_matches('/').to_string());
 
-    let app = app_router(db, session_layer, email_client, public_url);
+    let github_router = Arc::new(GithubClientImpl::new());
+
+    let app = app_router(db, session_layer, email_client, public_url, github_router);
 
     let port = env::var("PORT").unwrap_or_else(|_| "3000".into());
     let addr = format!("0.0.0.0:{port}");

@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions::Session;
 use tower_sessions_sqlx_store::SqliteStore;
+use featherboard::auth_github::GithubClientImpl;
 
 async fn session_cookie(db: &sqlx::SqlitePool, user_id: i64) -> String {
     session_store(db).await;
@@ -38,7 +39,7 @@ async fn creating_a_comment_persists_it_through_the_router() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(db.clone(), session_store(&db).await, None, None, GithubClientImpl::arc());
     let request = axum::http::Request::builder()
         .uri("/default/ideas/1/comments")
         .method("POST")
@@ -80,7 +81,7 @@ async fn admin_status_change_persists_through_the_router() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(db.clone(), session_store(&db).await, None, None, GithubClientImpl::arc());
     let request = axum::http::Request::builder()
         .uri("/default/ideas/1/status")
         .method("POST")
@@ -111,7 +112,7 @@ async fn user_can_update_notification_preferences() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(db.clone(), session_store(&db).await, None, None, GithubClientImpl::arc());
     let request = axum::http::Request::builder()
         .uri("/default/settings/user/notifications")
         .method("POST")
@@ -156,7 +157,7 @@ async fn admin_can_assign_idea_to_changelog() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(db.clone(), session_store(&db).await, None, None, GithubClientImpl::arc());
 
     let make_request = |body: &str| {
         Request::builder()

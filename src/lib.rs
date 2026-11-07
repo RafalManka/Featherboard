@@ -1,4 +1,5 @@
 use crate::auth::auth_router;
+use crate::auth_github::GithubClient;
 use crate::changelog::changelog_router;
 use crate::email::EmailClient;
 use crate::error::AppError;
@@ -13,6 +14,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
 use sqlx::{Pool, Sqlite, SqlitePool};
+use std::sync::Arc;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tower_sessions::cookie::SameSite;
 use tower_sessions::cookie::time::Duration;
@@ -45,6 +47,7 @@ pub struct AppState {
     pub public_url: Option<String>,
     pub db: SqlitePool,
     pub email_client: Option<EmailClient>,
+    pub github_client: Arc<dyn GithubClient + Send + Sync>,
 }
 
 pub async fn session_store(db: &Pool<Sqlite>) -> SessionManagerLayer<SqliteStore> {
@@ -59,11 +62,13 @@ pub async fn session_store(db: &Pool<Sqlite>) -> SessionManagerLayer<SqliteStore
         .with_same_site(SameSite::Lax);
     session_layer
 }
+
 pub fn app_router(
     db: Pool<Sqlite>,
     session_layer: SessionManagerLayer<SqliteStore>,
     email_client: Option<EmailClient>,
     public_url: Option<String>,
+    github_client: Arc<dyn GithubClient + Send + Sync>,
 ) -> Router {
     let app = Router::new()
         .route("/", get(root_redirect))
@@ -75,6 +80,7 @@ pub fn app_router(
             public_url,
             db,
             email_client,
+            github_client,
         })
         .layer(session_layer)
         .layer(

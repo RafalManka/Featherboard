@@ -4,13 +4,14 @@ use crate::common::test_db;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
+use featherboard::auth_github::GithubClientImpl;
 
 #[tokio::test]
 async fn healthz_returns_ok() {
     let db = test_db().await;
     let session_layer = session_store(&db).await;
 
-    let app = app_router(db, session_layer, None, None);
+    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
 
     let request = axum::http::Request::builder()
         .uri("/healthz")

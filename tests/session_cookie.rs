@@ -1,6 +1,7 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use tower::ServiceExt;
 
@@ -23,7 +24,7 @@ async fn session_cookie_has_samesite_lax() {
 
     let session_layer = session_store(&db).await;
 
-    let app = app_router(db, session_layer, None, None);
+    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
 
     let request = axum::http::Request::builder()
         .uri("/default/ideas/1/vote")

@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions::Session;
 use tower_sessions_sqlx_store::SqliteStore;
+use featherboard::auth_github::GithubClientImpl;
 
 // Guards against the resubscribe-after-cancellation bug fixed 2026-10-10
 // (see plan.md, Phase 7): once a subscription's status became `canceled`,
@@ -62,7 +63,7 @@ async fn canceled_subscription_shows_subscribe_form() {
     session.save().await.unwrap();
     let session_id = session.id().unwrap().to_string();
 
-    let app = app_router(db, session_layer, None, None);
+    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
 
     let request = axum::http::Request::builder()
         .uri("/default/settings/site")

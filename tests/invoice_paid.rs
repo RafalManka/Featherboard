@@ -6,6 +6,7 @@ use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
+use featherboard::auth_github::GithubClientImpl;
 
 type Sha256Hmac = Hmac<Sha256>;
 
@@ -50,7 +51,7 @@ async fn invoice_paid_resolves_org_and_returns_ok() {
     .unwrap();
 
     let session_layer = session_store(&db).await;
-    let app = app_router(db, session_layer, None, None);
+    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
 
     let body = br#"{"type":"invoice.paid","data":{"object":{"subscription":"sub_1UOxcIPSAteXyg1hdaZg1Sqg"}}}"#.to_vec();
     let timestamp = SystemTime::now()

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions::Session;
 use tower_sessions_sqlx_store::SqliteStore;
+use featherboard::auth_github::GithubClientImpl;
 
 // Guards against creating a second Stripe subscription for an org that
 // already has an ongoing one (active/trialing/past_due/etc. — anything
@@ -64,6 +65,7 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
         session_layer,
         None,
         Some("http://localhost:3000".to_string()),
+        GithubClientImpl::arc(),
     );
 
     let request = axum::http::Request::builder()
