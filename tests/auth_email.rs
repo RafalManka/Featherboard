@@ -111,3 +111,101 @@ async fn confirm_email(
 
     app.clone().oneshot(request).await.unwrap()
 }
+
+#[tokio::test]
+async fn reject_expired_magic_link() {
+    let db = test_db().await;
+
+    let store = SqliteStore::new(db.clone());
+    store.migrate().await.unwrap();
+
+    let app = app_router(
+        db.clone(),
+        SessionManagerLayer::new(store).with_secure(false),
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
+
+    let token = Uuid::new_v4().to_string();
+    let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
+
+    sqlx::query("INSERT INTO magic_links (org_id, email, token_hash, expires_at) VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 second'))")
+        .bind(1)
+        .bind("user@example.com")
+        .bind(token_hash)
+        .execute(&db)
+        .await
+        .unwrap();
+
+    let request = axum::http::Request::builder()
+        .uri(format!("/default/login/check-email/{}", token))
+        .method("GET")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let response = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+
+    let users: Vec<(i64, i64)> = sqlx::query_as(
+        "SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY org_id",
+    )
+        .fetch_all(&db)
+        .await
+        .unwrap();
+
+    assert_eq!(users.len(), 0);
+}
+
+#[tokio::test]
+async fn reject_reused_magic_link() {
+    let db = test_db().await;
+    let store = SqliteStore::new(db.clone());
+    store.migrate().await.unwrap();
+
+    let app = app_router(
+        db.clone(),
+        SessionManagerLayer::new(store).with_secure(false),
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
+
+    let token = Uuid::new_v4().to_string();
+    let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
+
+    sqlx::query("INSERT INTO magic_links (org_id, email, token_hash) VALUES (?, ?, ?)")
+        .bind(1)
+        .bind("email@example.com")
+        .bind(token_hash)
+        .execute(&db)
+        .await
+        .unwrap();
+
+    let request = axum::http::Request::builder()
+        .uri(format!("/default/login/check-email/{token}"))
+        .method("GET")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let response = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+
+    let request = axum::http::Request::builder()
+        .uri(format!("/default/login/check-email/{token}"))
+        .method("GET")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+
+    let users: Vec<(i64, i64)> = sqlx::query_as(
+        "SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY id",
+    )
+        .fetch_all(&db)
+        .await
+        .unwrap();
+
+    assert_eq!(users.len(), 1);
+    assert_eq!(users[0].0, 1);
+}
