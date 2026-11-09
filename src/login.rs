@@ -91,6 +91,7 @@ async fn login_form_submit(
 
     let token = Uuid::new_v4().to_string();
     let hash = hex::encode(Sha256::digest(token.as_bytes()));
+    let email = form.email.to_lowercase();
 
     let sql = r#"
         INSERT INTO magic_links (org_id, email, token_hash)
@@ -105,18 +106,15 @@ async fn login_form_submit(
 
     sqlx::query(sql)
         .bind(current_org.id)
-        .bind(&form.email)
+        .bind(&email)
         .bind(&hash)
         .bind(current_org.id)
         .execute(&state.db)
         .await?;
 
+    let link = current_org.path(&format!("/login/check-email/{}", &token));
     EmailNotifier::new(&state.db, &current_org, &email_client)
-        .magic_link(MagicLinkEmail {
-            email: form.email.clone(),
-            code: token.clone(),
-            link: current_org.path(&format!("/login/check-email/{}", &token)),
-        })
+        .magic_link(MagicLinkEmail { email, token, link })
         .await?;
 
     Ok(current_org.redirect("/login/check-email").into_response())
@@ -172,8 +170,6 @@ async fn confirm_magic_link(
         .into_response());
     };
 
-    let provider_user_id = email.clone();
-
     let sql = r#"
         INSERT INTO users (org_id, provider, provider_user_id, email, name)
         VALUES (?, ?, ?, ?, ?)
@@ -183,10 +179,11 @@ async fn confirm_magic_link(
         RETURNING id
     "#;
 
+    let email = email.to_lowercase();
     let user_id: i64 = sqlx::query_scalar(sql)
         .bind(current_org.id)
         .bind("email")
-        .bind(&provider_user_id)
+        .bind(&email)
         .bind(&email)
         .bind(&email)
         .fetch_one(&state.db)

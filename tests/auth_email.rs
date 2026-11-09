@@ -85,6 +85,36 @@ async fn email_account_is_reused_within_one_org() {
     assert_eq!(users[0].0, 1);
 }
 
+#[tokio::test]
+async fn email_login_normalizes_email_identity() {
+    let db = test_db().await;
+    let store = SqliteStore::new(db.clone());
+    store.migrate().await.unwrap();
+
+    let app = app_router(
+        db.clone(),
+        SessionManagerLayer::new(store).with_secure(false),
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
+
+    let response = confirm_email(&app, &db, 1, "default", "User@example.com").await;
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+
+    let response = confirm_email(&app, &db, 1, "default", "user@example.com").await;
+    assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
+
+    let users: Vec<(i64, String)> = sqlx::query_as(
+        "SELECT org_id, email FROM users WHERE provider = 'email' ORDER BY id",
+    )
+    .fetch_all(&db)
+    .await
+    .unwrap();
+
+    assert_eq!(users, vec![(1, "user@example.com".to_string())]);
+}
+
 async fn confirm_email(
     app: &axum::Router,
     db: &sqlx::SqlitePool,

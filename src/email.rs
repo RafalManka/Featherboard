@@ -196,7 +196,7 @@ enum NotificationKind {
 #[template(path = "emails/magic_link.html")]
 pub struct MagicLinkEmail {
     pub email: String,
-    pub code: String,
+    pub token: String,
     pub link: String,
 }
 
