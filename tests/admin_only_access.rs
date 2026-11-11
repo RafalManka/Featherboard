@@ -1,13 +1,13 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions::Session;
 use tower_sessions_sqlx_store::SqliteStore;
-use featherboard::auth_github::GithubClientImpl;
 
 // Guards against a non-admin reaching either the settings page (which now
 // shows billing status, replacing the old standalone /subscriptions page

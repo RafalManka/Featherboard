@@ -1,12 +1,12 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
-use featherboard::auth_github::GithubClientImpl;
 
 type Sha256Hmac = Hmac<Sha256>;
 

@@ -1,10 +1,10 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
-use featherboard::auth_github::GithubClientImpl;
 
 #[tokio::test]
 async fn healthz_returns_ok() {

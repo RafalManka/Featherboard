@@ -1,12 +1,12 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions::Session;
 use tower_sessions_sqlx_store::SqliteStore;
-use featherboard::auth_github::GithubClientImpl;
 
 // Guards against creating a second Stripe subscription for an org that
 // already has an ongoing one (active/trialing/past_due/etc. — anything

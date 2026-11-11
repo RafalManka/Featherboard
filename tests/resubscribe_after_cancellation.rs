@@ -1,13 +1,13 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions::Session;
 use tower_sessions_sqlx_store::SqliteStore;
-use featherboard::auth_github::GithubClientImpl;
 
 // Guards against the resubscribe-after-cancellation bug fixed 2026-10-10
 // (see plan.md, Phase 7): once a subscription's status became `canceled`,

@@ -14,15 +14,13 @@ use tower_sessions::SessionManagerLayer;
 async fn email_accounts_are_org_scoped() {
     let db = test_db().await;
 
-    sqlx::query(
-        "INSERT INTO organizations (id, name, slug) VALUES (?, ?, ?)",
-    )
-    .bind(2)
-    .bind("Second Org")
-    .bind("second")
-    .execute(&db)
-    .await
-    .unwrap();
+    sqlx::query("INSERT INTO organizations (id, name, slug) VALUES (?, ?, ?)")
+        .bind(2)
+        .bind("Second Org")
+        .bind("second")
+        .execute(&db)
+        .await
+        .unwrap();
 
     let store = SqliteStore::new(db.clone());
     store.migrate().await.unwrap();
@@ -41,12 +39,11 @@ async fn email_accounts_are_org_scoped() {
     let response = confirm_email(&app, &db, 2, "second", "user@example.com").await;
     assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
 
-    let users: Vec<(i64, i64)> = sqlx::query_as(
-        "SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY org_id",
-    )
-    .fetch_all(&db)
-    .await
-    .unwrap();
+    let users: Vec<(i64, i64)> =
+        sqlx::query_as("SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY org_id")
+            .fetch_all(&db)
+            .await
+            .unwrap();
 
     assert_eq!(users.len(), 2);
     assert_eq!(users[0].0, 1);
@@ -74,12 +71,11 @@ async fn email_account_is_reused_within_one_org() {
     let response = confirm_email(&app, &db, 1, "default", "user@example.com").await;
     assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
 
-    let users: Vec<(i64, i64)> = sqlx::query_as(
-        "SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY id",
-    )
-    .fetch_all(&db)
-    .await
-    .unwrap();
+    let users: Vec<(i64, i64)> =
+        sqlx::query_as("SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY id")
+            .fetch_all(&db)
+            .await
+            .unwrap();
 
     assert_eq!(users.len(), 1);
     assert_eq!(users[0].0, 1);
@@ -105,12 +101,11 @@ async fn email_login_normalizes_email_identity() {
     let response = confirm_email(&app, &db, 1, "default", "user@example.com").await;
     assert_eq!(response.status(), axum::http::StatusCode::SEE_OTHER);
 
-    let users: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT org_id, email FROM users WHERE provider = 'email' ORDER BY id",
-    )
-    .fetch_all(&db)
-    .await
-    .unwrap();
+    let users: Vec<(i64, String)> =
+        sqlx::query_as("SELECT org_id, email FROM users WHERE provider = 'email' ORDER BY id")
+            .fetch_all(&db)
+            .await
+            .unwrap();
 
     assert_eq!(users, vec![(1, "user@example.com".to_string())]);
 }
@@ -177,12 +172,11 @@ async fn reject_expired_magic_link() {
     let response = app.clone().oneshot(request).await.unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 
-    let users: Vec<(i64, i64)> = sqlx::query_as(
-        "SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY org_id",
-    )
-        .fetch_all(&db)
-        .await
-        .unwrap();
+    let users: Vec<(i64, i64)> =
+        sqlx::query_as("SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY org_id")
+            .fetch_all(&db)
+            .await
+            .unwrap();
 
     assert_eq!(users.len(), 0);
 }
@@ -229,12 +223,11 @@ async fn reject_reused_magic_link() {
     let response = app.clone().oneshot(request).await.unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 
-    let users: Vec<(i64, i64)> = sqlx::query_as(
-        "SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY id",
-    )
-        .fetch_all(&db)
-        .await
-        .unwrap();
+    let users: Vec<(i64, i64)> =
+        sqlx::query_as("SELECT org_id, id FROM users WHERE provider = 'email' ORDER BY id")
+            .fetch_all(&db)
+            .await
+            .unwrap();
 
     assert_eq!(users.len(), 1);
     assert_eq!(users[0].0, 1);

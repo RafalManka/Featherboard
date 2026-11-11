@@ -1,11 +1,11 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use tower::ServiceExt;
-use featherboard::auth_github::GithubClientImpl;
 
 //noinspection RsUnresolvedPath
 fn sign(body: &[u8], secret: &str, timestamp: i64) -> String {
@@ -42,7 +42,13 @@ async fn stale_event_is_ignored_in_favor_of_newer_already_applied_state() {
 
     let db = test_db().await;
     let session_layer = session_store(&db).await;
-    let app = app_router(db.clone(), session_layer, None, None, GithubClientImpl::arc());
+    let app = app_router(
+        db.clone(),
+        session_layer,
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
 
     let send = |app: axum::Router, created: i64, status: &str| {
         let body = format!(

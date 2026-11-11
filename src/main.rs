@@ -1,3 +1,4 @@
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::email::EmailClient;
 use featherboard::{app_router, session_store};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
@@ -6,7 +7,6 @@ use std::io::IsTerminal;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
-use featherboard::auth_github::GithubClientImpl;
 
 #[tokio::main]
 async fn main() {
