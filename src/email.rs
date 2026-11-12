@@ -433,6 +433,7 @@ mod tests {
     fn current_org(id: i64) -> CurrentOrg {
         CurrentOrg {
             id,
+            name: format!("Org {id}"),
             slug: format!("org-{id}"),
             github_client_secret: None,
             github_client_id: None,

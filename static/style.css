@@ -1291,3 +1291,104 @@ button[type="submit"].detail-danger:hover {
     height: 20px;
     flex-shrink: 0;
 }
+
+/* Login page */
+.login-main {
+    padding: 0 0 5rem;
+}
+
+.login-content {
+    width: min(100%, 26.875rem);
+    margin: 0 auto;
+}
+
+.login-intro {
+    margin: 0.5rem 0 1.75rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.login-provider-button,
+.email-login-form button {
+    display: flex;
+    width: 100%;
+    min-height: 2.875rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    border-radius: 0.5625rem;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.login-github-button {
+    color: #fff;
+    background: #1f2328;
+}
+
+.login-github-button:hover { background: #343a40; }
+
+.login-github-icon {
+    width: 1.1875rem;
+    height: 1.1875rem;
+}
+
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    width: 100%;
+    margin: 1.5rem 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: var(--border);
+}
+
+.login-page .email-login-form {
+    gap: 0.625rem;
+    width: 100%;
+}
+
+.login-page .email-login-form label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+}
+
+.login-page .email-login-form input {
+    min-height: 2.875rem;
+    padding: 0 0.8125rem;
+    background: #fff;
+}
+
+.login-page .email-login-form button {
+    align-self: stretch;
+    margin-top: 0.25rem;
+    border: 0;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.login-page .email-login-form button:hover { background: var(--accent-hover); }
+
+.login-note {
+    margin: 1.375rem 0 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.55;
+    text-align: center;
+}
+
+@media (max-width: 32.5rem) {
+    .login-main { padding: 0 0 3.25rem; }
+}
