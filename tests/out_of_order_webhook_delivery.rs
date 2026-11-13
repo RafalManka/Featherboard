@@ -37,6 +37,8 @@ async fn stale_event_is_ignored_in_favor_of_newer_already_applied_state() {
     let secret = "whsec_test_secret";
     // SAFETY: this test is the only test in this binary.
     unsafe {
+        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
+        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
         std::env::set_var("STRIPE_WEBHOOK_SECRET", secret);
     }
 
@@ -46,7 +48,7 @@ async fn stale_event_is_ignored_in_favor_of_newer_already_applied_state() {
         db.clone(),
         session_layer,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 

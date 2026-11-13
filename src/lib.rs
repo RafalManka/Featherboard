@@ -28,6 +28,7 @@ pub mod auth_github;
 pub mod changelog;
 pub mod comments;
 pub mod email;
+pub mod environment;
 pub mod error;
 pub mod ideas;
 pub mod login;
@@ -44,7 +45,7 @@ pub mod webhooks;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub public_url: Option<String>,
+    pub environment: environment::Environment,
     pub db: SqlitePool,
     pub email_client: Option<EmailClient>,
     pub github_client: Arc<dyn GithubClient + Send + Sync>,
@@ -67,7 +68,7 @@ pub fn app_router(
     db: Pool<Sqlite>,
     session_layer: SessionManagerLayer<SqliteStore>,
     email_client: Option<EmailClient>,
-    public_url: Option<String>,
+    environment: environment::Environment,
     github_client: Arc<dyn GithubClient + Send + Sync>,
 ) -> Router {
     let app = Router::new()
@@ -77,7 +78,7 @@ pub fn app_router(
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
         .with_state(AppState {
-            public_url,
+            environment,
             db,
             email_client,
             github_client,

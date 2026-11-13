@@ -36,7 +36,13 @@ async fn non_admin_is_forbidden_on_both_subscription_routes() {
     session.save().await.unwrap();
     let session_id = session.id().unwrap().to_string();
 
-    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
+    let app = app_router(
+        db,
+        session_layer,
+        None,
+        featherboard::environment::Environment::load(),
+        GithubClientImpl::arc(),
+    );
 
     let settings_request = axum::http::Request::builder()
         .uri("/default/settings/site")
@@ -79,7 +85,13 @@ async fn admin_can_render_settings_page() {
     session.save().await.unwrap();
     let session_id = session.id().unwrap().to_string();
 
-    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
+    let app = app_router(
+        db,
+        session_layer,
+        None,
+        featherboard::environment::Environment::load(),
+        GithubClientImpl::arc(),
+    );
     let request = axum::http::Request::builder()
         .uri("/default/settings/site")
         .header("Cookie", format!("id={session_id}"))

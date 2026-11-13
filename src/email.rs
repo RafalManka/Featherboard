@@ -1,3 +1,4 @@
+use crate::environment::SmtpConfig;
 use crate::error::AppError;
 use crate::org::CurrentOrg;
 use askama::Template;
@@ -8,7 +9,6 @@ use lettre::transport::smtp::client::Tls::Required;
 use lettre::transport::smtp::client::TlsParametersBuilder;
 use lettre::{Message, SmtpTransport, Transport};
 use sqlx::SqlitePool;
-use std::env;
 
 #[derive(Clone)]
 pub struct EmailClient {
@@ -34,31 +34,15 @@ impl Mailer for EmailClient {
 }
 
 impl EmailClient {
-    pub fn load() -> Option<Self> {
-        let Some(sender) = env::var("SMTP_USER").ok() else {
-            return None;
-        };
-        let Some(password) = env::var("SMTP_PASSWORD").ok() else {
-            return None;
-        };
-        let Some(smtp) = env::var("SMTP_ADDRESS").ok() else {
-            return None;
-        };
-        let Some(port) = env::var("SMTP_PORT").ok() else {
-            return None;
-        };
-
-        let Some(port) = port.parse().ok() else {
-            return None;
-        };
-
-        Some(EmailClient {
-            sender,
-            password,
-            smtp,
-            port,
-        })
+    pub fn new(config: SmtpConfig) -> Self {
+        EmailClient {
+            sender: config.sender,
+            password: config.password,
+            smtp: config.smtp,
+            port: config.port,
+        }
     }
+
     pub fn send_email(&self, message: &Message) -> Result<(), Box<lettre::transport::smtp::Error>> {
         SmtpTransport::relay(&self.smtp)?
             .port(self.port)

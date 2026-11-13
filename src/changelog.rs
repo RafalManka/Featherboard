@@ -106,7 +106,9 @@ async fn create_changelog(
 
     let path = format!("/changelogs/{}", id);
 
-    if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
+    if let (Some(email_client), Some(public_url)) =
+        (state.email_client, state.environment.public_url.clone())
+    {
         let changelog_title = title;
         let changelog_body = description;
         let changelog_url = current_org.path(&path);
