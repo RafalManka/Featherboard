@@ -151,7 +151,9 @@ async fn create_comment(
         .execute(&state.db)
         .await?;
 
-    if let (Some(email_client), Some(public_url)) = (state.email_client, state.public_url) {
+    if let (Some(email_client), Some(public_url)) =
+        (state.email_client, state.environment.public_url.clone())
+    {
         let comment_body = body;
         let idea_title = get_idea_title(&state.db, &current_org, id_param.id).await?;
 

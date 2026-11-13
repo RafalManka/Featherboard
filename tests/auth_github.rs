@@ -47,7 +47,7 @@ async fn github_accounts_are_org_scoped() {
         db.clone(),
         session_layer,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         Arc::new(FakeGithubClient),
     );
 
@@ -91,7 +91,7 @@ async fn github_account_is_reused_within_one_org() {
         db.clone(),
         session_layer,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         Arc::new(FakeGithubClient),
     );
 

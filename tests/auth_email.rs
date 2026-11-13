@@ -29,7 +29,7 @@ async fn email_accounts_are_org_scoped() {
         db.clone(),
         SessionManagerLayer::new(store).with_secure(false),
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 
@@ -61,7 +61,7 @@ async fn email_account_is_reused_within_one_org() {
         db.clone(),
         SessionManagerLayer::new(store).with_secure(false),
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 
@@ -91,7 +91,7 @@ async fn email_login_normalizes_email_identity() {
         db.clone(),
         SessionManagerLayer::new(store).with_secure(false),
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 
@@ -148,7 +148,7 @@ async fn reject_expired_magic_link() {
         db.clone(),
         SessionManagerLayer::new(store).with_secure(false),
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 
@@ -191,7 +191,7 @@ async fn reject_reused_magic_link() {
         db.clone(),
         SessionManagerLayer::new(store).with_secure(false),
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 

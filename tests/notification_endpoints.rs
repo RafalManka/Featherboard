@@ -43,7 +43,7 @@ async fn creating_a_comment_persists_it_through_the_router() {
         db.clone(),
         session_store(&db).await,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
     let request = axum::http::Request::builder()
@@ -91,7 +91,7 @@ async fn admin_status_change_persists_through_the_router() {
         db.clone(),
         session_store(&db).await,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
     let request = axum::http::Request::builder()
@@ -128,7 +128,7 @@ async fn user_can_update_notification_preferences() {
         db.clone(),
         session_store(&db).await,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
     let request = axum::http::Request::builder()
@@ -179,7 +179,7 @@ async fn admin_can_assign_idea_to_changelog() {
         db.clone(),
         session_store(&db).await,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 

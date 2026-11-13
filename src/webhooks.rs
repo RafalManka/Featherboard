@@ -17,7 +17,6 @@ use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
-use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
@@ -79,12 +78,11 @@ async fn stripe_webhook(
         return Ok((StatusCode::BAD_REQUEST, "missing Stripe-Signature header").into_response());
     };
 
-    let secret = match env::var("STRIPE_WEBHOOK_SECRET") {
-        Ok(secret) => secret,
-        Err(_) => return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response()),
+    let Some(stripe) = &state.environment.stripe else {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    if !verify_stripe_signature(&body, signature, &secret) {
+    if !verify_stripe_signature(&body, signature, &stripe.webhook_secret) {
         return Ok((StatusCode::BAD_REQUEST, "invalid signature").into_response());
     }
 
@@ -130,7 +128,7 @@ async fn handle_invoice_paid(
         return Ok(StatusCode::OK.into_response());
     };
 
-    let Some(public_url) = &state.public_url else {
+    let Some(public_url) = &state.environment.public_url else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
@@ -186,7 +184,7 @@ async fn handle_invoice_payment_failed(
         return Ok(StatusCode::OK.into_response());
     };
 
-    let Some(public_url) = &state.public_url else {
+    let Some(public_url) = &state.environment.public_url else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 

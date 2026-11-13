@@ -39,7 +39,12 @@ async fn get_settings(
 
     Ok(HtmlTemplate(SettingsTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
-        subscription: get_subscription_view(&state.db, current_org.id).await?,
+        subscription: get_subscription_view(
+            &state.db,
+            current_org.id,
+            state.environment.stripe.is_some(),
+        )
+        .await?,
         github: load_github_view(&current_org),
     })
     .into_response())

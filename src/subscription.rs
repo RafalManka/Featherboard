@@ -10,7 +10,6 @@ use axum::routing::post;
 use axum::{Form, Router};
 use serde::Deserialize;
 use sqlx::SqlitePool;
-use std::env;
 use tower_sessions::Session;
 use uuid::Uuid;
 
@@ -29,11 +28,11 @@ async fn subscriptions_portal(
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
-    let Some((secret_key, _)) = get_stripe_config() else {
+    let Some(stripe) = &state.environment.stripe else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let Some(public_url) = state.public_url else {
+    let Some(public_url) = &state.environment.public_url else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
@@ -48,7 +47,7 @@ async fn subscriptions_portal(
     let client = reqwest::Client::new();
     let response = client
         .post("https://api.stripe.com/v1/billing_portal/sessions")
-        .basic_auth(secret_key, Some(""))
+        .basic_auth(&stripe.secret_key, Some(""))
         .form(&form)
         .send()
         .await?
@@ -100,11 +99,11 @@ async fn stripe_checkout(
         return Ok(StatusCode::FORBIDDEN.into_response());
     }
 
-    let Some((secret_key, price_id)) = get_stripe_config() else {
+    let Some(stripe) = &state.environment.stripe else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
-    let Some(public_url) = state.public_url else {
+    let Some(public_url) = &state.environment.public_url else {
         return Ok(StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
@@ -124,7 +123,7 @@ async fn stripe_checkout(
     let form = [
         ("success_url", success_url),
         ("cancel_url", cancel_url),
-        ("line_items[0][price]", price_id),
+        ("line_items[0][price]", stripe.price_id.clone()),
         ("line_items[0][quantity]", "1".to_owned()),
         ("mode", "subscription".to_owned()),
         (
@@ -142,7 +141,7 @@ async fn stripe_checkout(
     let response = client
         .post("https://api.stripe.com/v1/checkout/sessions")
         .header("Idempotency-Key", idempotency_key)
-        .basic_auth(secret_key, Some(""))
+        .basic_auth(&stripe.secret_key, Some(""))
         .form(&form)
         .send()
         .await?
@@ -214,18 +213,6 @@ async fn has_ongoing_subscription(db: &SqlitePool, org_id: i64) -> Result<bool, 
     Ok(result)
 }
 
-fn get_stripe_config() -> Option<(String, String)> {
-    let secret_key = match env::var("STRIPE_SECRET_KEY") {
-        Ok(secret) => secret,
-        Err(_) => return None,
-    };
-    let price_id = match env::var("STRIPE_PRICE_ID") {
-        Ok(secret) => secret,
-        Err(_) => return None,
-    };
-    Some((secret_key, price_id))
-}
-
 #[derive(sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Subscription {
@@ -254,9 +241,10 @@ pub enum SubscriptionView {
 pub async fn get_subscription_view(
     db: &SqlitePool,
     org_id: i64,
+    stripe_configured: bool,
 ) -> Result<SubscriptionView, AppError> {
     let subscription = get_valid_subscription(db, org_id).await?;
-    let has_config = get_stripe_config().is_some();
+    let has_config = stripe_configured;
 
     if has_config && let Some(subscription) = subscription {
         Ok(SubscriptionView::Active(subscription))

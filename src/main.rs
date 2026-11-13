@@ -1,8 +1,8 @@
 use featherboard::auth_github::GithubClientImpl;
 use featherboard::email::EmailClient;
+use featherboard::environment::Environment;
 use featherboard::{app_router, session_store};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use std::env;
 use std::io::IsTerminal;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -17,10 +17,9 @@ async fn main() {
         )
         .init();
 
-    let database_url =
-        env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:featherboard.db?mode=rwc".into());
+    let environment = Environment::load();
 
-    let options = SqliteConnectOptions::from_str(&database_url)
+    let options = SqliteConnectOptions::from_str(&environment.database_url)
         .expect("failed to connect to database")
         .pragma("foreign_keys", "ON");
 
@@ -36,19 +35,15 @@ async fn main() {
 
     let session_layer = session_store(&db).await;
 
-    let email_client = EmailClient::load();
+    let email_client = environment.smtp.clone().map(EmailClient::new);
     if email_client.is_none() {
         tracing::warn!("SMTP not configured. Email notifications disabled");
     }
-    let public_url = env::var("PUBLIC_URL")
-        .ok()
-        .map(|e| e.trim_end_matches('/').to_string());
-
     let github_router = Arc::new(GithubClientImpl::new());
 
-    let app = app_router(db, session_layer, email_client, public_url, github_router);
+    let port = environment.port;
+    let app = app_router(db, session_layer, email_client, environment, github_router);
 
-    let port = env::var("PORT").unwrap_or_else(|_| "3000".into());
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
         .await

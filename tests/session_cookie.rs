@@ -24,7 +24,13 @@ async fn session_cookie_has_samesite_lax() {
 
     let session_layer = session_store(&db).await;
 
-    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
+    let app = app_router(
+        db,
+        session_layer,
+        None,
+        featherboard::environment::Environment::load(),
+        GithubClientImpl::arc(),
+    );
 
     let request = axum::http::Request::builder()
         .uri("/default/ideas/1/vote")

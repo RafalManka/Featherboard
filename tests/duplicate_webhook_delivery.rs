@@ -38,6 +38,8 @@ async fn replayed_subscription_created_event_does_not_duplicate_or_error() {
     let secret = "whsec_test_secret";
     // SAFETY: this test is the only test in this binary.
     unsafe {
+        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
+        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
         std::env::set_var("STRIPE_WEBHOOK_SECRET", secret);
     }
 
@@ -47,7 +49,7 @@ async fn replayed_subscription_created_event_does_not_duplicate_or_error() {
         db.clone(),
         session_layer,
         None,
-        None,
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 

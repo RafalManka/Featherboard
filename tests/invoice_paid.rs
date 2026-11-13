@@ -37,6 +37,8 @@ async fn invoice_paid_resolves_org_and_returns_ok() {
     let secret = "whsec_test_secret";
     // SAFETY: this test is the only test in this binary.
     unsafe {
+        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
+        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
         std::env::set_var("STRIPE_WEBHOOK_SECRET", secret);
     }
 
@@ -51,7 +53,13 @@ async fn invoice_paid_resolves_org_and_returns_ok() {
     .unwrap();
 
     let session_layer = session_store(&db).await;
-    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
+    let app = app_router(
+        db,
+        session_layer,
+        None,
+        featherboard::environment::Environment::load(),
+        GithubClientImpl::arc(),
+    );
 
     let body = br#"{"type":"invoice.paid","data":{"object":{"subscription":"sub_1UOxcIPSAteXyg1hdaZg1Sqg"}}}"#.to_vec();
     let timestamp = SystemTime::now()

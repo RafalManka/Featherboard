@@ -11,7 +11,13 @@ async fn healthz_returns_ok() {
     let db = test_db().await;
     let session_layer = session_store(&db).await;
 
-    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
+    let app = app_router(
+        db,
+        session_layer,
+        None,
+        featherboard::environment::Environment::load(),
+        GithubClientImpl::arc(),
+    );
 
     let request = axum::http::Request::builder()
         .uri("/healthz")

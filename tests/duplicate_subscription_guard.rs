@@ -25,6 +25,8 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
     unsafe {
         std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
         std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
+        std::env::set_var("STRIPE_WEBHOOK_SECRET", "whsec_test_dummy");
+        std::env::set_var("PUBLIC_URL", "http://localhost:3000");
     }
 
     let db = test_db().await;
@@ -64,7 +66,7 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
         db,
         session_layer,
         None,
-        Some("http://localhost:3000".to_string()),
+        featherboard::environment::Environment::load(),
         GithubClientImpl::arc(),
     );
 
