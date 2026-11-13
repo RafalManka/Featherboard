@@ -31,6 +31,7 @@ impl IntoResponse for CurrentOrgRejection {
 #[derive(sqlx::FromRow)]
 pub struct CurrentOrg {
     pub id: i64,
+    pub name: String,
     pub slug: String,
     pub github_client_secret: Option<String>,
     pub github_client_id: Option<String>,
@@ -55,6 +56,7 @@ impl CurrentOrg {
         let sql = r#"
             SELECT
                 id,
+                name,
                 slug,
                 github_client_secret,
                 github_client_id,
@@ -86,6 +88,7 @@ impl FromRequestParts<AppState> for CurrentOrg {
         let sql = r#"
             SELECT
                 id,
+                name,
                 slug,
                 github_client_secret,
                 github_client_id,

@@ -1,6 +1,7 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
@@ -42,7 +43,13 @@ async fn replayed_subscription_created_event_does_not_duplicate_or_error() {
 
     let db = test_db().await;
     let session_layer = session_store(&db).await;
-    let app = app_router(db.clone(), session_layer, None, None);
+    let app = app_router(
+        db.clone(),
+        session_layer,
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
 
     let body = br#"{"type":"customer.subscription.created","created":1700000000,"data":{"object":{"id":"sub_test","customer":"cus_test","status":"active","metadata":{"featherboard_org_id":"1","idempotency_key":"attempt-key"}}}}"#.to_vec();
     let timestamp = SystemTime::now()

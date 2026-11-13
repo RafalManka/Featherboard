@@ -3,6 +3,7 @@ mod common;
 use crate::common::test_db;
 use axum::body::Body;
 use axum::http::Request;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -38,7 +39,13 @@ async fn creating_a_comment_persists_it_through_the_router() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(
+        db.clone(),
+        session_store(&db).await,
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
     let request = axum::http::Request::builder()
         .uri("/default/ideas/1/comments")
         .method("POST")
@@ -80,7 +87,13 @@ async fn admin_status_change_persists_through_the_router() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(
+        db.clone(),
+        session_store(&db).await,
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
     let request = axum::http::Request::builder()
         .uri("/default/ideas/1/status")
         .method("POST")
@@ -111,7 +124,13 @@ async fn user_can_update_notification_preferences() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(
+        db.clone(),
+        session_store(&db).await,
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
     let request = axum::http::Request::builder()
         .uri("/default/settings/user/notifications")
         .method("POST")
@@ -156,7 +175,13 @@ async fn admin_can_assign_idea_to_changelog() {
     .unwrap();
 
     let cookie = session_cookie(&db, 1).await;
-    let app = app_router(db.clone(), session_store(&db).await, None, None);
+    let app = app_router(
+        db.clone(),
+        session_store(&db).await,
+        None,
+        None,
+        GithubClientImpl::arc(),
+    );
 
     let make_request = |body: &str| {
         Request::builder()

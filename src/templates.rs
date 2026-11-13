@@ -23,6 +23,7 @@ impl<T: Template> IntoResponse for HtmlTemplate<T> {
 }
 
 pub struct Layout {
+    pub org_name: String,
     pub org_slug: String,
     pub is_logged_in: bool,
     pub is_admin: bool,
@@ -40,6 +41,7 @@ impl Layout {
         let is_admin = is_admin(db, session, current_org.id).await?;
 
         Ok(Self {
+            org_name: current_org.name.clone(),
             org_slug: current_org.slug.clone(),
             is_logged_in,
             is_admin,

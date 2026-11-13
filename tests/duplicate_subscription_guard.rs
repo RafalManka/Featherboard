@@ -1,6 +1,7 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -64,6 +65,7 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
         session_layer,
         None,
         Some("http://localhost:3000".to_string()),
+        GithubClientImpl::arc(),
     );
 
     let request = axum::http::Request::builder()

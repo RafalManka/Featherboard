@@ -20,7 +20,7 @@ pub struct EmailClient {
 
 pub trait Mailer {
     fn sender(&self) -> &str;
-    fn send(&self, message: &Message) -> Result<(), ()>;
+    fn send(&self, message: &Message) -> Result<(), AppError>;
 }
 
 impl Mailer for EmailClient {
@@ -28,8 +28,8 @@ impl Mailer for EmailClient {
         &self.sender
     }
 
-    fn send(&self, message: &Message) -> Result<(), ()> {
-        self.send_email(message).map_err(|_| ())
+    fn send(&self, message: &Message) -> Result<(), AppError> {
+        self.send_email(message).map_err(AppError::from)
     }
 }
 
@@ -192,6 +192,14 @@ enum NotificationKind {
     StatusChanges,
 }
 
+#[derive(Template)]
+#[template(path = "emails/magic_link.html")]
+pub struct MagicLinkEmail {
+    pub email: String,
+    pub token: String,
+    pub link: String,
+}
+
 async fn notification_recipient_emails(
     db: &SqlitePool,
     current_org: &CurrentOrg,
@@ -255,7 +263,7 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         user_id: Option<i64>,
         idea_id: i64,
         template: NewCommentEmail,
-    ) -> Result<(), AppError> {
+    ) -> Result<Vec<(String, AppError)>, AppError> {
         let emails = notification_recipient_emails(
             self.db,
             self.current_org,
@@ -265,19 +273,25 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         )
         .await;
 
-        for email in emails {
-            let message = Message::builder()
-                .from(Mailbox::new(
-                    Some(self.current_org.slug.clone()),
-                    self.email_client.sender().parse()?,
-                ))
-                .to(Mailbox::new(None, email.parse()?))
-                .subject(format!("New comment on: {}", template.idea_title))
-                .header(ContentType::TEXT_HTML)
-                .body(template.render()?)?;
+        self.send_to_all(
+            &format!("New comment on: {}", template.idea_title),
+            &template.render()?,
+            emails,
+        )
+    }
 
-            _ = self.email_client.send(&message);
-        }
+    pub async fn magic_link(&self, template: MagicLinkEmail) -> Result<(), AppError> {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some(self.current_org.slug.clone()),
+                self.email_client.sender().parse()?,
+            ))
+            .to(Mailbox::new(None, template.email.parse()?))
+            .subject(format!("Confirmation code for: {}", template.email))
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        self.email_client.send(&message)?;
 
         Ok(())
     }
@@ -287,7 +301,7 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         user_id: Option<i64>,
         idea_id: i64,
         template: StatusChangedEmail,
-    ) -> Result<(), AppError> {
+    ) -> Result<Vec<(String, AppError)>, AppError> {
         let emails = notification_recipient_emails(
             self.db,
             self.current_org,
@@ -297,24 +311,16 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         )
         .await;
 
-        for email in emails {
-            let message = Message::builder()
-                .from(Mailbox::new(
-                    Some(self.current_org.slug.clone()),
-                    self.email_client.sender().parse()?,
-                ))
-                .to(Mailbox::new(None, email.parse()?))
-                .subject(format!(
-                    "Status changed to {}: {}",
-                    template.new_status, template.idea_title
-                ))
-                .header(ContentType::TEXT_HTML)
-                .body(template.render()?)?;
+        let errors = self.send_to_all(
+            &format!(
+                "Status changed to {}: {}",
+                template.new_status, template.idea_title
+            ),
+            &template.render()?,
+            emails,
+        )?;
 
-            _ = self.email_client.send(&message);
-        }
-
-        Ok(())
+        Ok(errors)
     }
 
     pub async fn changelog_shipped(
@@ -322,7 +328,7 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
         user_id: Option<i64>,
         changelog_id: i64,
         template: ChangelogShippedEmail,
-    ) -> Result<(), AppError> {
+    ) -> Result<Vec<(String, AppError)>, AppError> {
         let sql = r#"
            SELECT DISTINCT u.email
            FROM users u
@@ -349,6 +355,22 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
             .await
             .unwrap_or_default();
 
+        let errors = self.send_to_all(
+            &format!("Your feedback is now shipped: {}", template.changelog_title),
+            &template.render()?,
+            emails,
+        )?;
+
+        Ok(errors)
+    }
+
+    fn send_to_all(
+        &self,
+        subject: &str,
+        body: &str,
+        emails: Vec<String>,
+    ) -> Result<Vec<(String, AppError)>, AppError> {
+        let mut errors = Vec::new();
         for email in emails {
             let message = Message::builder()
                 .from(Mailbox::new(
@@ -356,20 +378,26 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
                     self.email_client.sender().parse()?,
                 ))
                 .to(Mailbox::new(None, email.parse()?))
-                .subject(format!(
-                    "Your feedback is now shipped: {}",
-                    template.changelog_title
-                ))
+                .subject(subject)
                 .header(ContentType::TEXT_HTML)
-                .body(template.render()?)?;
+                .body(body.to_string())?;
 
-            _ = self.email_client.send(&message);
+            if let Err(err) = self.email_client.send(&message) {
+                errors.push((email, err));
+            }
         }
 
-        Ok(())
+        for (email, error) in &errors {
+            tracing::error!("error sending email to {email}; error: {:?}", error);
+        }
+
+        Ok(errors)
     }
 
-    pub async fn changelog_created(&self, template: ChangelogCreatedEmail) -> Result<(), AppError> {
+    pub async fn changelog_created(
+        &self,
+        template: ChangelogCreatedEmail,
+    ) -> Result<Vec<(String, AppError)>, AppError> {
         let sql = r#"
            SELECT email
            FROM users
@@ -382,30 +410,21 @@ impl<'a, M: Mailer + ?Sized> EmailNotifier<'a, M> {
             .await
             .unwrap_or(vec![]);
 
-        for email in emails {
-            let message = Message::builder()
-                .from(Mailbox::new(
-                    Some(self.current_org.slug.clone()),
-                    self.email_client.sender().parse()?,
-                ))
-                .to(Mailbox::new(None, email.parse()?))
-                .subject(format!("Changelog created: {}", template.changelog_title))
-                .header(ContentType::TEXT_HTML)
-                .body(template.render()?)?;
-
-            _ = self.email_client.send(&message);
-        }
-
-        Ok(())
+        self.send_to_all(
+            &format!("Changelog created: {}", template.changelog_title),
+            &template.render()?,
+            emails,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        ChangelogShippedEmail, EmailNotifier, Mailer, NewCommentEmail, NotificationKind,
-        StatusChangedEmail, notification_recipient_emails,
+        ChangelogCreatedEmail, ChangelogShippedEmail, EmailNotifier, Mailer, NewCommentEmail,
+        NotificationKind, StatusChangedEmail, notification_recipient_emails,
     };
+    use crate::error::AppError;
     use crate::org::CurrentOrg;
     use lettre::Message;
     use sqlx::sqlite::SqlitePoolOptions;
@@ -414,6 +433,7 @@ mod tests {
     fn current_org(id: i64) -> CurrentOrg {
         CurrentOrg {
             id,
+            name: format!("Org {id}"),
             slug: format!("org-{id}"),
             github_client_secret: None,
             github_client_id: None,
@@ -568,12 +588,21 @@ mod tests {
 
     struct FakeEmailer {
         recipients: Mutex<Vec<String>>,
+        fail_for: Option<String>,
     }
 
     impl FakeEmailer {
         fn new() -> Self {
             Self {
                 recipients: Mutex::new(Vec::new()),
+                fail_for: None,
+            }
+        }
+
+        fn fail_for(recipient: String) -> Self {
+            Self {
+                recipients: Mutex::new(Vec::new()),
+                fail_for: Some(recipient),
             }
         }
 
@@ -589,10 +618,24 @@ mod tests {
             "foo@example.com"
         }
 
-        fn send(&self, message: &Message) -> Result<(), ()> {
+        //noinspection RsUnwrap
+        fn send(&self, message: &Message) -> Result<(), AppError> {
             let mut recipients = self.recipients.lock().unwrap();
+            let send_to: Vec<String> = message
+                .envelope()
+                .to()
+                .iter()
+                .map(ToString::to_string)
+                .collect();
 
-            recipients.extend(message.envelope().to().iter().map(ToString::to_string));
+            if let Some(fail_for_email) = self.fail_for.as_ref() {
+                for to in &send_to {
+                    if to == fail_for_email {
+                        return Err(AppError::from(anyhow::anyhow!("email delivery failed")));
+                    }
+                }
+            }
+            recipients.extend(send_to);
 
             Ok(())
         }
@@ -751,5 +794,39 @@ mod tests {
             email_client.recipients(),
             vec!["user.one@example.com", "user.two@example.com"]
         );
+    }
+
+    //noinspection SqlResolve
+    //noinspection SqlInsertValues
+    #[tokio::test]
+    async fn recipient_is_notified_despite_errors() {
+        let db = test_db().await;
+        let email_client = FakeEmailer::fail_for("user.two@example.com".to_string());
+
+        sqlx::query(
+            "INSERT INTO users (id, org_id, email, is_admin, notify_shipped) VALUES
+                (1, 1, 'user.one@example.com', 1, 1),
+                (2, 1, 'user.two@example.com', 1, 1)",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+
+        let result: Vec<(String, AppError)> =
+            EmailNotifier::new(&db, &current_org(1), &email_client)
+                .changelog_created(ChangelogCreatedEmail {
+                    changelog_title: "Test changelog".into(),
+                    changelog_body: "Test changelog body".to_string(),
+                    changelog_url: "/default/changelog/30".into(),
+                })
+                .await
+                .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "user.two@example.com");
+
+        let recipients = email_client.recipients.lock().unwrap();
+        assert_eq!(recipients.len(), 1);
+        assert_eq!(recipients[0], "user.one@example.com");
     }
 }

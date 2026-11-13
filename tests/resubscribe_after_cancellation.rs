@@ -1,6 +1,7 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
 use std::sync::Arc;
@@ -62,7 +63,7 @@ async fn canceled_subscription_shows_subscribe_form() {
     session.save().await.unwrap();
     let session_id = session.id().unwrap().to_string();
 
-    let app = app_router(db, session_layer, None, None);
+    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
 
     let request = axum::http::Request::builder()
         .uri("/default/settings/site")

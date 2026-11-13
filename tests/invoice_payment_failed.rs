@@ -1,6 +1,7 @@
 mod common;
 
 use crate::common::test_db;
+use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
@@ -52,7 +53,7 @@ async fn invoice_payment_failed_resolves_org_and_returns_ok() {
     .unwrap();
 
     let session_layer = session_store(&db).await;
-    let app = app_router(db, session_layer, None, None);
+    let app = app_router(db, session_layer, None, None, GithubClientImpl::arc());
 
     let body = br#"{"type":"invoice.payment_failed","data":{"object":{"subscription":"sub_1UOxcIPSAteXyg1hdaZg1Sqg"}}}"#.to_vec();
     let timestamp = SystemTime::now()
