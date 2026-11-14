@@ -1389,6 +1389,207 @@ button[type="submit"].detail-danger:hover {
     text-align: center;
 }
 
+/* Organisation setup — standalone because no CurrentOrg exists yet. */
+.setup-page {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 0 1.25rem 4rem;
+    background: #fff;
+}
+
+.setup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 3.625rem;
+    padding: 1rem 0;
+    margin-bottom: 0.5rem;
+}
+
+.setup-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.setup-logo {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.setup-step {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.setup-main {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+.setup-welcome,
+.setup-form-surface {
+    padding: 2rem;
+    border-radius: var(--radius-card);
+}
+
+.setup-welcome {
+    color: var(--text);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+}
+
+.setup-welcome-title {
+    margin: 1rem 0 0.75rem;
+    color: var(--text);
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.setup-eyebrow {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.setup-features {
+    display: grid;
+    gap: 0.7rem;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.setup-features li {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.setup-features li span:first-child {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 50%;
+    color: var(--accent);
+    background: var(--accent-tint);
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.setup-form-surface {
+    background: #fff;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(17, 20, 44, 0.04);
+}
+
+.setup-form-surface h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+}
+
+.setup-description {
+    margin: 0.6rem 0 1.5rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.setup-form {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.setup-form label {
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 650;
+}
+
+.setup-form input {
+    width: 100%;
+    min-height: 2.75rem;
+    margin-top: 0.35rem;
+    padding: 0 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    color: var(--text);
+    background: #fff;
+    font: inherit;
+}
+
+.setup-form input:focus {
+    outline: 0;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.setup-slug-field {
+    display: flex;
+    align-items: stretch;
+    margin-top: 0.35rem;
+}
+
+.setup-slug-field > span {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.7rem;
+    border: 1px solid var(--border);
+    border-right: 0;
+    border-radius: 0.55rem 0 0 0.55rem;
+    color: var(--muted);
+    background: var(--bg-subtle);
+    font-size: 0.8rem;
+}
+
+.setup-slug-field input {
+    margin: 0;
+    border-radius: 0 0.55rem 0.55rem 0;
+}
+
+.setup-hint {
+    margin: 0.2rem 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.setup-form button {
+    min-height: 2.75rem;
+    margin-top: 0.35rem;
+    border: 0;
+    border-radius: 0.55rem;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.setup-form button:hover { background: var(--accent-hover); }
+
+@media (max-width: 44rem) {
+    .setup-main { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 32.5rem) {
+    .setup-page { padding: 0 1rem 3rem; }
+    .setup-header { padding: 1.25rem 0 3rem; }
+    .setup-welcome,
+    .setup-form-surface { padding: 1.5rem; }
+}
+
 @media (max-width: 32.5rem) {
     .login-main { padding: 0 0 3.25rem; }
 }

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create organisation · Featherboard</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="setup-page">
+<header class="setup-header">
+    <a class="setup-brand" href="/setup">
+        <img class="setup-logo" src="/static/favicon.svg" alt="">
+        <span>Featherboard</span>
+    </a>
+    <span class="setup-step">Step 1 of 2</span>
+</header>
+
+<main class="setup-main">
+    <section class="setup-welcome">
+        <p class="setup-eyebrow">Welcome to Featherboard</p>
+        <p class="setup-welcome-title">Make feedback useful.</p>
+        <p class="setup-description">Your organisation is the home for ideas, votes, roadmap updates, and changelogs.</p>
+        <ul class="setup-features">
+            <li><span aria-hidden="true">✓</span><span>One public place for customer feedback</span></li>
+            <li><span aria-hidden="true">✓</span><span>A clear path from idea to shipped</span></li>
+        </ul>
+    </section>
+
+    <section class="setup-form-surface" aria-labelledby="setup-title">
+        <p class="setup-eyebrow">Step 1 of 2</p>
+        <h1 id="setup-title">Name your organisation</h1>
+        <p class="setup-description">This name will appear on your feedback board.</p>
+
+        <form class="setup-form" method="post" action="/setup">
+            <label for="name">Organisation name</label>
+            <input id="name" name="name" type="text" placeholder="Acme" required>
+
+            <label for="slug">Organisation URL</label>
+            <div class="setup-slug-field">
+                <span>app.featherboard.net/</span>
+                <input id="slug" name="slug" type="text" placeholder="acme" required>
+            </div>
+
+            <p class="setup-hint">Use lowercase letters, numbers, and hyphens.</p>
+            <button type="submit">Continue</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>
