@@ -133,7 +133,7 @@ pub struct CheckEmailTemplate {
 }
 
 #[derive(Deserialize)]
-struct IdParam {
+struct TokenParam {
     token: String,
 }
 
@@ -147,7 +147,7 @@ async fn confirm_magic_link(
     State(state): State<AppState>,
     session: Session,
     current_org: CurrentOrg,
-    Path(token_param): Path<IdParam>,
+    Path(token_param): Path<TokenParam>,
 ) -> Result<Response, AppError> {
     let hash = hex::encode(Sha256::digest(token_param.token.as_bytes()));
 
@@ -215,6 +215,4 @@ mod test {
         assert!(!is_valid_email("@email.com"));
         assert!(!is_valid_email("invalid@email.x"));
     }
-
-    // TODO: test email sending?
 }

@@ -6,6 +6,7 @@ use crate::error::AppError;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use crate::login::login_router;
 use crate::settings::settings_router;
+use crate::setup::setup_router;
 use crate::subscription::subscriptions_router;
 use crate::webhooks::webhooks_router;
 use axum::Router;
@@ -35,6 +36,7 @@ pub mod login;
 pub mod models;
 pub mod org;
 mod settings;
+pub mod setup;
 pub mod site_settings;
 pub mod static_assets;
 pub mod subscription;
@@ -77,6 +79,7 @@ pub fn app_router(
         .nest("/webhooks", webhooks_router())
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
+        .nest("/setup", setup_router())
         .with_state(AppState {
             environment,
             db,
