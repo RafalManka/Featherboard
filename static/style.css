@@ -1565,6 +1565,12 @@ button[type="submit"].detail-danger:hover {
     font-size: 0.78rem;
 }
 
+.setup-error {
+    margin: -0.45rem 0 0;
+    color: #b42318;
+    font-size: 0.78rem;
+}
+
 .setup-form button {
     min-height: 2.75rem;
     margin-top: 0.35rem;

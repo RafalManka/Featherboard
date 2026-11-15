@@ -54,6 +54,20 @@ impl EmailClient {
             .send(&message)?;
         Ok(())
     }
+
+    pub async fn send_magic_link(&self, template: MagicLinkEmail) -> Result<(), AppError> {
+        let message = Message::builder()
+            .from(Mailbox::new(
+                Some("Featherboard".to_string()),
+                self.sender.parse()?,
+            ))
+            .to(Mailbox::new(None, template.email.parse()?))
+            .subject("Confirm your Featherboard setup")
+            .header(ContentType::TEXT_HTML)
+            .body(template.render()?)?;
+
+        self.send_email(&message).map_err(AppError::from)
+    }
 }
 
 #[derive(Template)]

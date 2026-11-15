@@ -34,13 +34,19 @@
 
         <form class="setup-form" method="post" action="/setup">
             <label for="name">Organisation name</label>
-            <input id="name" name="name" type="text" placeholder="Acme" required>
+            <input id="name" name="name" type="text" placeholder="Acme" value="{{ name }}" required>
+            {% if let Some(error) = name_error %}
+            <p class="setup-error">{{ error }}</p>
+            {% endif %}
 
             <label for="slug">Organisation URL</label>
             <div class="setup-slug-field">
                 <span>app.featherboard.net/</span>
-                <input id="slug" name="slug" type="text" placeholder="acme" required>
+                <input id="slug" name="slug" type="text" value="{{ slug }}" placeholder="acme" required>
             </div>
+            {% if let Some(error) = slug_error %}
+            <p class="setup-error">{{ error }}</p>
+            {% endif %}
 
             <p class="setup-hint">Use lowercase letters, numbers, and hyphens.</p>
             <button type="submit">Continue</button>
