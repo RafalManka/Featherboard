@@ -17,7 +17,7 @@ async fn main() {
         )
         .init();
 
-    let environment = Environment::load();
+    let environment = Environment::load().expect("Failed to load environment");
 
     let options = SqliteConnectOptions::from_str(&environment.database_url)
         .expect("failed to connect to database")

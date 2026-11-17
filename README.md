@@ -10,13 +10,17 @@ Featherboard is configured via environment variables.
 |---|---|---|--------------------------------------------------------------------------------------------------------------------|
 | `DATABASE_URL` | No | `sqlite:featherboard.db?mode=rwc` | SQLite database connection string.                                                                                 |
 | `PORT` | No | `3000` | Port the server listens on.                                                                                        |
-| `PUBLIC_URL` | Only for email notifications and Stripe Checkout | — | Public base URL used to build notification links and Stripe Checkout return URLs. |
-| `SMTP_ADDRESS` | Only for email notifications | — | SMTP server host used to send admin notification emails (new comments, status changes, changelog publishes).       |
+| `PUBLIC_URL` | Only for email notifications and Stripe Checkout | — | Public base URL used to build setup/login links, notification links, and Stripe Checkout return URLs. |
+| `SMTP_ADDRESS` | Only for email notifications | — | SMTP server host used to send setup links and notification emails to admins, submitters, and voters.       |
 | `SMTP_PORT` | Only for email notifications | — | SMTP server port. All four `SMTP_*` variables must be set to enable email notifications.                            |
 | `SMTP_USER` | Only for email notifications | — | SMTP auth username.                                                                                                |
 | `SMTP_PASSWORD` | Only for email notifications | — | SMTP auth password.                                                                                                |
 | `STRIPE_SECRET_KEY` | Only for Stripe billing | — | Stripe secret API key used to create Checkout Sessions and customer portal sessions.                              |
 | `STRIPE_PRICE_ID` | Only for Stripe billing | — | Recurring Stripe Price ID used for the hosted subscription plan.                                                  |
 | `STRIPE_WEBHOOK_SECRET` | Only for Stripe billing | — | Stripe webhook signing secret used to verify incoming events. All three Stripe variables must be set together.    |
+
+SMTP is enabled only when all four `SMTP_*` variables are present. If they are not configured, the application starts with email features disabled.
+
+Stripe billing is enabled only when all three `STRIPE_*` variables are present. If they are not configured, billing remains unavailable.
 
 Note: GitHub OAuth login is **not** configured via environment variables — each organization registers its own GitHub OAuth app, with the client ID/secret stored per-organization in the database rather than as a global env var.

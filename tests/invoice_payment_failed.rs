@@ -59,7 +59,7 @@ async fn invoice_payment_failed_resolves_org_and_returns_ok() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 
