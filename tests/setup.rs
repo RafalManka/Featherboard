@@ -13,7 +13,7 @@ async fn setup_app(db: &sqlx::SqlitePool) -> axum::Router {
         db.clone(),
         session_store(db).await,
         None,
-        Environment::load(),
+        Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     )
 }
@@ -54,14 +54,7 @@ async fn insert_pending_organization(
 #[tokio::test]
 async fn valid_setup_link_creates_admin_and_logs_them_in() {
     let db = test_db().await;
-    let token = insert_pending_organization(
-        &db,
-        "Acme",
-        "acme",
-        "Admin@Example.com",
-        None,
-    )
-    .await;
+    let token = insert_pending_organization(&db, "Acme", "acme", "Admin@Example.com", None).await;
     let app = setup_app(&db).await;
 
     let request = axum::http::Request::builder()
@@ -176,14 +169,9 @@ async fn invalid_setup_link_does_not_create_anything() {
 #[tokio::test]
 async fn setup_confirmation_rolls_back_when_organization_creation_fails() {
     let db = test_db().await;
-    let token = insert_pending_organization(
-        &db,
-        "Duplicate",
-        "default",
-        "duplicate@example.com",
-        None,
-    )
-    .await;
+    let token =
+        insert_pending_organization(&db, "Duplicate", "default", "duplicate@example.com", None)
+            .await;
     let app = setup_app(&db).await;
 
     let request = axum::http::Request::builder()
@@ -192,7 +180,10 @@ async fn setup_confirmation_rolls_back_when_organization_creation_fails() {
         .unwrap();
     let response = app.oneshot(request).await.unwrap();
 
-    assert_eq!(response.status(), axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(
+        response.status(),
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    );
 
     let pending_count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM pending_organizations WHERE email = 'duplicate@example.com'",
@@ -202,11 +193,10 @@ async fn setup_confirmation_rolls_back_when_organization_creation_fails() {
     .unwrap();
     assert_eq!(pending_count, 1);
 
-    let user_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM users WHERE email = 'duplicate@example.com'",
-    )
-    .fetch_one(&db)
-    .await
-    .unwrap();
+    let user_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE email = 'duplicate@example.com'")
+            .fetch_one(&db)
+            .await
+            .unwrap();
     assert_eq!(user_count, 0);
 }

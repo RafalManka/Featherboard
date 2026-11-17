@@ -40,7 +40,7 @@ async fn non_admin_is_forbidden_on_both_subscription_routes() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 
@@ -89,7 +89,7 @@ async fn admin_can_render_settings_page() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
     let request = axum::http::Request::builder()

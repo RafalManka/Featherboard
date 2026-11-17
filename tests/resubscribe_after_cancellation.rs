@@ -67,7 +67,7 @@ async fn canceled_subscription_shows_subscribe_form() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 

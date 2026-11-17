@@ -49,7 +49,7 @@ async fn replayed_subscription_created_event_does_not_duplicate_or_error() {
         db.clone(),
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 

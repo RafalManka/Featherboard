@@ -189,7 +189,11 @@ pub async fn submit_admin_page(
             .into_response());
     };
 
-    let public_url = state.environment.public_url.as_deref().unwrap_or("");
+    let public_url = state
+        .environment
+        .public_url
+        .as_deref()
+        .expect("Public URL is not configured");
     let link = format!("{public_url}/setup/confirm/{token}");
 
     email_client

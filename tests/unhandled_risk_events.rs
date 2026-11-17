@@ -49,7 +49,7 @@ async fn risk_events_are_accepted_without_custom_handling() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 

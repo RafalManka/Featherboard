@@ -28,7 +28,7 @@ async fn session_cookie_has_samesite_lax() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 

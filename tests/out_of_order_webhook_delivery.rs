@@ -48,7 +48,7 @@ async fn stale_event_is_ignored_in_favor_of_newer_already_applied_state() {
         db.clone(),
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 

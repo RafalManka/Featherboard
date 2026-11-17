@@ -66,7 +66,7 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load(),
+        featherboard::environment::Environment::load().expect("test environment should be valid"),
         GithubClientImpl::arc(),
     );
 
