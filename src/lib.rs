@@ -79,7 +79,11 @@ pub fn app_router(
         .nest("/webhooks", webhooks_router())
         .route("/static/{*path}", get(static_assets::serve))
         .route("/healthz", get(healthz))
-        .nest("/setup", setup_router())
+        .merge(if email_client.is_some() {
+            Router::new().nest("/setup", setup_router())
+        } else {
+            Router::new()
+        })
         .with_state(AppState {
             environment,
             db,
