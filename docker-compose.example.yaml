@@ -1,0 +1,22 @@
+services:
+  featherboard:
+    image: docker-registry.example.com/featherboard:VERSION
+    platform: linux/amd64
+    environment:
+      - 'DATABASE_URL=sqlite:/data/featherboard.db?mode=rwc'
+      - 'PORT=3000'
+      - 'PUBLIC_URL=https://featherboard.example.com'
+      # Configure these privately on the deployment host when email is enabled.
+      # - 'SMTP_ADDRESS=mail.example.com'
+      # - 'SMTP_PORT=587'
+      # - 'SMTP_USER=featherboard@example.com'
+      # - 'SMTP_PASSWORD=REPLACE_ME'
+      # Configure these privately on the deployment host when Stripe is enabled.
+      # - 'STRIPE_SECRET_KEY=REPLACE_ME'
+      # - 'STRIPE_PRICE_ID=REPLACE_ME'
+      # - 'STRIPE_WEBHOOK_SECRET=REPLACE_ME'
+    ports:
+      - "3005:3000"
+    volumes:
+      - /volume1/Applications/Featherboard:/data
+    restart: unless-stopped
