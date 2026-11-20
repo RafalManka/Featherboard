@@ -87,7 +87,7 @@ async fn update_status(
         let idea_url = current_org.path(&format!("/ideas/{}", id_path.id));
         let idea_url = format!("{}{}", public_url, idea_url);
         let new_status = status.label().to_string();
-        EmailNotifier::new(&state.db, &current_org, &email_client)
+        EmailNotifier::new(&state.db, &current_org, email_client.as_ref())
             .status_changed(
                 author_id,
                 id_path.id,
@@ -181,7 +181,7 @@ async fn assign_changelog(
         let changelog_url = current_org.path(&path);
         let changelog_url = format!("{}{}", public_url, changelog_url);
 
-        EmailNotifier::new(&state.db, &current_org, &email_client)
+        EmailNotifier::new(&state.db, &current_org, email_client.as_ref())
             .changelog_shipped(
                 author_id,
                 changelog_id,

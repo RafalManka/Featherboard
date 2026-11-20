@@ -9,6 +9,9 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use hmac::digest::Digest;
+use lettre::Message;
+use lettre::message::Mailbox;
+use lettre::message::header::ContentType;
 use regex::Regex;
 use serde::Deserialize;
 use sha2::Sha256;
@@ -181,7 +184,7 @@ pub async fn submit_admin_page(
         .execute(&state.db)
         .await?;
 
-    let Some(email_client) = state.email_client.as_ref() else {
+    let Some(email_client) = state.email_client else {
         return Ok((
             StatusCode::SERVICE_UNAVAILABLE,
             "Email setup is unavailable",
@@ -195,14 +198,23 @@ pub async fn submit_admin_page(
         .as_deref()
         .expect("Public URL is not configured");
     let link = format!("{public_url}/setup/confirm/{token}");
+    let template = MagicLinkEmail {
+        email: email.clone(),
+        token,
+        link,
+    };
 
-    email_client
-        .send_magic_link(MagicLinkEmail {
-            email: email.clone(),
-            token,
-            link,
-        })
-        .await?;
+    let message = Message::builder()
+        .from(Mailbox::new(
+            Some("Featherboard".to_string()),
+            email_client.sender().parse()?,
+        ))
+        .to(Mailbox::new(None, template.email.parse()?))
+        .subject("Confirm your Featherboard setup")
+        .header(ContentType::TEXT_HTML)
+        .body(template.render()?)?;
+
+    email_client.send(&message)?;
 
     Ok(HtmlTemplate(SetupAdminTemplate {
         email,

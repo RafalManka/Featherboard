@@ -1,6 +1,6 @@
 mod common;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_environment};
 use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
@@ -15,7 +15,7 @@ async fn healthz_returns_ok() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_environment(),
         GithubClientImpl::arc(),
     );
 
@@ -33,7 +33,7 @@ async fn healthz_returns_ok() {
 }
 
 #[tokio::test]
-async fn fresh_database_serves_healthz_and_setup() {
+async fn fresh_database_hides_setup_without_email() {
     let db = test_db().await;
     let session_layer = session_store(&db).await;
 
@@ -41,7 +41,7 @@ async fn fresh_database_serves_healthz_and_setup() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_environment(),
         GithubClientImpl::arc(),
     );
 
@@ -57,13 +57,5 @@ async fn fresh_database_serves_healthz_and_setup() {
         .body(axum::body::Body::empty())
         .unwrap();
     let setup_response = app.oneshot(setup_request).await.unwrap();
-    assert_eq!(setup_response.status(), axum::http::StatusCode::OK);
-
-    let setup_body = setup_response
-        .into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes();
-    assert!(String::from_utf8_lossy(&setup_body).contains("Name your organisation"));
+    assert_eq!(setup_response.status(), axum::http::StatusCode::NOT_FOUND);
 }

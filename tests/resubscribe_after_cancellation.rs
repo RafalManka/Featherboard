@@ -1,6 +1,6 @@
 mod common;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_stripe_environment};
 use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use http_body_util::BodyExt;
@@ -21,14 +21,6 @@ use tower_sessions_sqlx_store::SqliteStore;
 // get_subscription_view helper, so the guarantee is unchanged.
 #[tokio::test]
 async fn canceled_subscription_shows_subscribe_form() {
-    // SAFETY: this test is the only test in this binary (each tests/*.rs
-    // file is its own process), so there's no concurrent access to worry
-    // about.
-    unsafe {
-        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
-        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
-    }
-
     let db = test_db().await;
 
     // Migrations seed org id 1 / slug "default" automatically.
@@ -67,7 +59,7 @@ async fn canceled_subscription_shows_subscribe_form() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_stripe_environment("whsec_test_dummy"),
         GithubClientImpl::arc(),
     );
 

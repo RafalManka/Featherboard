@@ -1,6 +1,6 @@
 mod common;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_stripe_environment};
 use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use hmac::{Hmac, KeyInit, Mac};
@@ -36,20 +36,13 @@ fn sign(body: &[u8], secret: &str, timestamp: i64) -> String {
 #[tokio::test]
 async fn risk_events_are_accepted_without_custom_handling() {
     let secret = "whsec_test_secret";
-    // SAFETY: this test is the only test in this binary.
-    unsafe {
-        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
-        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
-        std::env::set_var("STRIPE_WEBHOOK_SECRET", secret);
-    }
-
     let db = test_db().await;
     let session_layer = session_store(&db).await;
     let app = app_router(
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_stripe_environment(secret),
         GithubClientImpl::arc(),
     );
 

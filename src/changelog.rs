@@ -114,7 +114,7 @@ async fn create_changelog(
         let changelog_url = current_org.path(&path);
         let changelog_url = format!("{}{}", public_url, changelog_url);
 
-        EmailNotifier::new(&state.db, &current_org, &email_client)
+        EmailNotifier::new(&state.db, &current_org, email_client.as_ref())
             .changelog_created(ChangelogCreatedEmail {
                 changelog_title: changelog_title.clone(),
                 changelog_body,

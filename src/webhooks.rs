@@ -1,7 +1,6 @@
 use crate::AppState;
 use crate::email::{
-    EmailClient, PaymentFailedEmail, PaymentSuccessEmail, notify_payment_failed,
-    notify_payment_success,
+    Mailer, PaymentFailedEmail, PaymentSuccessEmail, notify_payment_failed, notify_payment_success,
 };
 use crate::error::AppError;
 use crate::models::SubscriptionStatus;
@@ -17,6 +16,7 @@ use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
@@ -98,9 +98,12 @@ async fn stripe_webhook(
         }
         "checkout.session.expired" => handle_session_event(&body, &state.db).await,
         "invoice.payment_failed" => {
-            handle_invoice_payment_failed(&state, &body, &state.db, &state.email_client).await
+            handle_invoice_payment_failed(&state, &body, &state.db, state.email_client.clone())
+                .await
         }
-        "invoice.paid" => handle_invoice_paid(&state, &body, &state.db, &state.email_client).await,
+        "invoice.paid" => {
+            handle_invoice_paid(&state, &body, &state.db, state.email_client.clone()).await
+        }
         _ => Ok(StatusCode::OK.into_response()),
     }
 }
@@ -109,7 +112,7 @@ async fn handle_invoice_paid(
     state: &AppState,
     body: &Bytes,
     db: &SqlitePool,
-    email_client: &Option<EmailClient>,
+    email_client: Option<Arc<dyn Mailer + Send + Sync>>,
 ) -> Result<Response, AppError> {
     let Ok(event) = serde_json::from_slice::<StripeInvoiceEvent>(body) else {
         return Ok((StatusCode::BAD_REQUEST, "invalid subscription event").into_response());
@@ -164,7 +167,7 @@ async fn handle_invoice_payment_failed(
     state: &AppState,
     body: &Bytes,
     db: &SqlitePool,
-    email_client: &Option<EmailClient>,
+    email_client: Option<Arc<dyn Mailer + Send + Sync>>,
 ) -> Result<Response, AppError> {
     let Ok(event) = serde_json::from_slice::<StripeInvoiceEvent>(body) else {
         return Ok((StatusCode::BAD_REQUEST, "invalid subscription event").into_response());

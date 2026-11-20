@@ -1,19 +1,34 @@
 mod common;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_environment};
 use featherboard::auth_github::GithubClientImpl;
-use featherboard::environment::Environment;
+use featherboard::email::Mailer;
+use featherboard::error::AppError;
 use featherboard::{app_router, session_store};
+use lettre::Message;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use tower::ServiceExt;
 use uuid::Uuid;
+
+struct TestMailer;
+
+impl Mailer for TestMailer {
+    fn sender(&self) -> &str {
+        "test@example.com"
+    }
+
+    fn send(&self, _message: &Message) -> Result<(), AppError> {
+        Ok(())
+    }
+}
 
 async fn setup_app(db: &sqlx::SqlitePool) -> axum::Router {
     app_router(
         db.clone(),
         session_store(db).await,
-        None,
-        Environment::load().expect("test environment should be valid"),
+        Some(Arc::new(TestMailer)),
+        test_environment(),
         GithubClientImpl::arc(),
     )
 }

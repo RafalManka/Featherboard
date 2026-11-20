@@ -2,6 +2,7 @@ mod common;
 
 use crate::common::test_db;
 use featherboard::auth_github::GithubClientImpl;
+use featherboard::environment::{Environment, StripeConfig};
 use featherboard::{app_router, session_store};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
@@ -35,12 +36,6 @@ fn sign(body: &[u8], secret: &str, timestamp: i64) -> String {
 #[tokio::test]
 async fn invoice_paid_resolves_org_and_returns_ok() {
     let secret = "whsec_test_secret";
-    // SAFETY: this test is the only test in this binary.
-    unsafe {
-        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
-        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
-        std::env::set_var("STRIPE_WEBHOOK_SECRET", secret);
-    }
 
     let db = test_db().await;
 
@@ -53,11 +48,22 @@ async fn invoice_paid_resolves_org_and_returns_ok() {
     .unwrap();
 
     let session_layer = session_store(&db).await;
+    let environment = Environment {
+        database_url: "sqlite::memory:".to_string(),
+        port: 3000,
+        public_url: Some("http://localhost:3000".to_string()),
+        smtp: None,
+        stripe: Some(StripeConfig {
+            secret_key: "sk_test_dummy".to_string(),
+            price_id: "price_dummy".to_string(),
+            webhook_secret: secret.to_string(),
+        }),
+    };
     let app = app_router(
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        environment,
         GithubClientImpl::arc(),
     );
 

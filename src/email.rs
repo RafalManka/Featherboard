@@ -9,6 +9,7 @@ use lettre::transport::smtp::client::Tls::Required;
 use lettre::transport::smtp::client::TlsParametersBuilder;
 use lettre::{Message, SmtpTransport, Transport};
 use sqlx::SqlitePool;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct EmailClient {
@@ -54,20 +55,6 @@ impl EmailClient {
             .send(&message)?;
         Ok(())
     }
-
-    pub async fn send_magic_link(&self, template: MagicLinkEmail) -> Result<(), AppError> {
-        let message = Message::builder()
-            .from(Mailbox::new(
-                Some("Featherboard".to_string()),
-                self.sender.parse()?,
-            ))
-            .to(Mailbox::new(None, template.email.parse()?))
-            .subject("Confirm your Featherboard setup")
-            .header(ContentType::TEXT_HTML)
-            .body(template.render()?)?;
-
-        self.send_email(&message).map_err(AppError::from)
-    }
 }
 
 #[derive(Template)]
@@ -79,7 +66,7 @@ pub struct PaymentSuccessEmail {
 pub async fn notify_payment_success(
     db: &SqlitePool,
     current_org: &CurrentOrg,
-    email_client: &EmailClient,
+    email_client: Arc<dyn Mailer + Send + Sync>,
     template: PaymentSuccessEmail,
 ) -> Result<(), AppError> {
     let sql = r#"
@@ -98,14 +85,14 @@ pub async fn notify_payment_success(
         let message = Message::builder()
             .from(Mailbox::new(
                 Some(current_org.slug.clone()),
-                email_client.sender.parse()?,
+                email_client.sender().parse()?,
             ))
             .to(Mailbox::new(None, email.parse()?))
             .subject("Your subscription has been paid")
             .header(ContentType::TEXT_HTML)
             .body(template.render()?)?;
 
-        _ = email_client.send_email(&message);
+        _ = email_client.send(&message);
     }
 
     Ok(())
@@ -120,7 +107,7 @@ pub struct PaymentFailedEmail {
 pub async fn notify_payment_failed(
     db: &SqlitePool,
     current_org: &CurrentOrg,
-    email_client: &EmailClient,
+    email_client: Arc<dyn Mailer + Send + Sync>,
     template: PaymentFailedEmail,
 ) -> Result<(), AppError> {
     let sql = r#"
@@ -139,14 +126,14 @@ pub async fn notify_payment_failed(
         let message = Message::builder()
             .from(Mailbox::new(
                 Some(current_org.slug.clone()),
-                email_client.sender.parse()?,
+                email_client.as_ref().sender().parse()?,
             ))
             .to(Mailbox::new(None, email.parse()?))
             .subject("Payment failed for your Featherboard subscription")
             .header(ContentType::TEXT_HTML)
             .body(template.render()?)?;
 
-        _ = email_client.send_email(&message);
+        _ = email_client.send(&message);
     }
 
     Ok(())

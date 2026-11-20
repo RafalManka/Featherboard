@@ -1,6 +1,6 @@
 mod common;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_environment};
 use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use tower::ServiceExt;
@@ -28,7 +28,7 @@ async fn session_cookie_has_samesite_lax() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_environment(),
         GithubClientImpl::arc(),
     );
 

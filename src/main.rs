@@ -1,13 +1,11 @@
-use featherboard::auth_github::GithubClientImpl;
-use featherboard::email::EmailClient;
+use featherboard::email::{EmailClient, Mailer};
 use featherboard::environment::Environment;
-use featherboard::{app_router, session_store};
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use featherboard::server::build_app;
+//noinspection RsUnresolvedPath
 use std::io::IsTerminal;
-use std::str::FromStr;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
-
+//noinspection RsReferenceIsNotPublic
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -19,36 +17,11 @@ async fn main() {
 
     let environment = Environment::load().expect("Failed to load environment");
 
-    let options = SqliteConnectOptions::from_str(&environment.database_url)
-        .expect("failed to connect to database")
-        .pragma("foreign_keys", "ON");
+    let email_client: Option<Arc<dyn Mailer + Send + Sync>> = environment
+        .smtp
+        .clone()
+        .map(EmailClient::new)
+        .map(|client| Arc::new(client) as Arc<dyn Mailer + Send + Sync>);
 
-    let db = SqlitePoolOptions::new()
-        .connect_with(options)
-        .await
-        .expect("failed to connect to database");
-
-    sqlx::migrate!("./migrations")
-        .run(&db)
-        .await
-        .expect("failed to run migrations");
-
-    let session_layer = session_store(&db).await;
-
-    let email_client = environment.smtp.clone().map(EmailClient::new);
-    if email_client.is_none() {
-        tracing::warn!("SMTP not configured. Email notifications disabled");
-    }
-    let github_router = Arc::new(GithubClientImpl::new());
-
-    let port = environment.port;
-    let app = app_router(db, session_layer, email_client, environment, github_router);
-
-    let addr = format!("0.0.0.0:{port}");
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .expect("failed to bind to address");
-
-    tracing::info!("listening on {addr}");
-    axum::serve(listener, app).await.expect("server error");
+    build_app(environment, email_client).await;
 }

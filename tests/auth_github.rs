@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use tower_sessions_sqlx_store::SqliteStore;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_environment};
 use tower_sessions::{Session, SessionManagerLayer};
 
 #[tokio::test]
@@ -47,7 +47,7 @@ async fn github_accounts_are_org_scoped() {
         db.clone(),
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_environment(),
         Arc::new(FakeGithubClient),
     );
 
@@ -91,7 +91,7 @@ async fn github_account_is_reused_within_one_org() {
         db.clone(),
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_environment(),
         Arc::new(FakeGithubClient),
     );
 

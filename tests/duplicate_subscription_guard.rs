@@ -1,6 +1,6 @@
 mod common;
 
-use crate::common::test_db;
+use crate::common::{test_db, test_stripe_environment};
 use featherboard::auth_github::GithubClientImpl;
 use featherboard::{app_router, session_store};
 use std::sync::Arc;
@@ -21,14 +21,6 @@ use tower_sessions_sqlx_store::SqliteStore;
 // Stripe's real API rather than silently succeed.
 #[tokio::test]
 async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
-    // SAFETY: this test is the only test in this binary.
-    unsafe {
-        std::env::set_var("STRIPE_SECRET_KEY", "sk_test_dummy");
-        std::env::set_var("STRIPE_PRICE_ID", "price_dummy");
-        std::env::set_var("STRIPE_WEBHOOK_SECRET", "whsec_test_dummy");
-        std::env::set_var("PUBLIC_URL", "http://localhost:3000");
-    }
-
     let db = test_db().await;
 
     sqlx::query(
@@ -66,7 +58,7 @@ async fn checkout_redirects_without_calling_stripe_when_already_subscribed() {
         db,
         session_layer,
         None,
-        featherboard::environment::Environment::load().expect("test environment should be valid"),
+        test_stripe_environment("whsec_test_dummy"),
         GithubClientImpl::arc(),
     );
 

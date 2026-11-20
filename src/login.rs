@@ -113,7 +113,7 @@ async fn login_form_submit(
         .await?;
 
     let link = current_org.path(&format!("/login/check-email/{}", &token));
-    EmailNotifier::new(&state.db, &current_org, &email_client)
+    EmailNotifier::new(&state.db, &current_org, email_client.as_ref())
         .magic_link(MagicLinkEmail { email, token, link })
         .await?;
 

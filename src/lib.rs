@@ -1,7 +1,8 @@
 use crate::auth::auth_router;
 use crate::auth_github::GithubClient;
 use crate::changelog::changelog_router;
-use crate::email::EmailClient;
+use crate::email::Mailer;
+use crate::environment::Environment;
 use crate::error::AppError;
 use crate::ideas::{ideas_router, list_ideas, roadmap};
 use crate::login::login_router;
@@ -35,6 +36,7 @@ pub mod ideas;
 pub mod login;
 pub mod models;
 pub mod org;
+pub mod server;
 mod settings;
 pub mod setup;
 pub mod site_settings;
@@ -47,9 +49,9 @@ pub mod webhooks;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub environment: environment::Environment,
+    pub environment: Environment,
     pub db: SqlitePool,
-    pub email_client: Option<EmailClient>,
+    pub email_client: Option<Arc<dyn Mailer + Send + Sync>>,
     pub github_client: Arc<dyn GithubClient + Send + Sync>,
 }
 
@@ -69,8 +71,8 @@ pub async fn session_store(db: &Pool<Sqlite>) -> SessionManagerLayer<SqliteStore
 pub fn app_router(
     db: Pool<Sqlite>,
     session_layer: SessionManagerLayer<SqliteStore>,
-    email_client: Option<EmailClient>,
-    environment: environment::Environment,
+    email_client: Option<Arc<dyn Mailer + Send + Sync>>,
+    environment: Environment,
     github_client: Arc<dyn GithubClient + Send + Sync>,
 ) -> Router {
     let app = Router::new()

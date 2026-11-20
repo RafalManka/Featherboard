@@ -159,7 +159,7 @@ async fn create_comment(
 
         let idea_url = current_org.path(&format!("/ideas/{}", id_param.id));
         let idea_url = format!("{}{}", public_url, idea_url);
-        EmailNotifier::new(&state.db, &current_org, &email_client)
+        EmailNotifier::new(&state.db, &current_org, email_client.as_ref())
             .comment_created(
                 author_id,
                 id_param.id,

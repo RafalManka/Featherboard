@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2024"
 license = "AGPL-3.0-only"
 
+[features]
+e2e = []
+
+[[bin]]
+name = "e2e-server"
+path = "src/bin/e2e_server.rs"
+required-features = ["e2e"]
+
 [dependencies]
 anyhow = "1.0.104"
 askama = "0.16.0"

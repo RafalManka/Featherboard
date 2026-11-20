@@ -2,6 +2,7 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './e2e',
+  testIgnore: ['**/setup-email.spec.js'],
   timeout: 30_000,
   fullyParallel: true,
   reporter: 'list',
@@ -17,7 +18,7 @@ module.exports = defineConfig({
     // },
   },
   webServer: {
-    command: 'DATABASE_URL=sqlite:/private/tmp/featherboard-playwright.db?mode=rwc PORT=3100 PUBLIC_URL=http://127.0.0.1:3100 cargo run',
+    command: 'DATABASE_URL=sqlite:/private/tmp/featherboard-playwright.db?mode=rwc PORT=3100 PUBLIC_URL=http://127.0.0.1:3100 cargo run --bin featherboard',
     url: 'http://127.0.0.1:3100/healthz',
     reuseExistingServer: false,
     timeout: 120_000,
