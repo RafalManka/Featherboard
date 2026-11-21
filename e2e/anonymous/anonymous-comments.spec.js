@@ -27,4 +27,14 @@ test('anonymous visitors can validate comments and post replies', async ({ page 
   await comment.getByRole('button', { name: 'Reply' }).click();
 
   await expect(page.getByText('This is a reply.')).toBeVisible();
+  await expect(page).toHaveScreenshot('idea-detail.png', {
+    fullPage: true,
+    mask: [
+      page.locator('.idea-main h1'),
+      page.locator('.idea-description'),
+      page.locator('.comment-body'),
+      page.locator('.comment-author'),
+      page.locator('.comment-date'),
+    ],
+  });
 });

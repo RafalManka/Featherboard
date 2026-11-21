@@ -1,7 +1,5 @@
-const fs = require('fs');
 const { test, expect } = require('@playwright/test');
-
-const EMAIL_FILE = '/private/tmp/featherboard-e2e-email.eml';
+const { waitForMagicLink } = require('../../helpers');
 
 test('email login sends an absolute magic link', async ({ page }) => {
   await page.goto('/acme-e2e/logout');
@@ -13,21 +11,10 @@ test('email login sends an absolute magic link', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/acme-e2e\/login\/check-email$/);
 
-  let magicLink = '';
-  await expect.poll(() => {
-    try {
-      const email = fs
-        .readFileSync(EMAIL_FILE, 'utf8')
-        .replace(/=\r?\n/g, '')
-        .replace(/=3D/g, '=');
-      magicLink = email.match(
-        /http:\/\/127\.0\.0\.1:3101\/acme-e2e\/login\/check-email\/[a-zA-Z0-9-]+/,
-      )?.[0] ?? '';
-    } catch {
-      magicLink = '';
-    }
-    return magicLink;
-  }).toBeTruthy();
+  const magicLink = await waitForMagicLink(
+    expect,
+    /http:\/\/127\.0\.0\.1:3101\/acme-e2e\/login\/check-email\/[a-zA-Z0-9-]+/,
+  );
 
   expect(magicLink).toMatch(/^http:\/\/127\.0\.0\.1:3101\//);
 

@@ -1,14 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const { createIdea } = require('../../helpers');
 
 test('admin can delete an idea', async ({ page }) => {
   const title = `Delete idea ${Date.now()}`;
 
-  await page.goto('/acme-e2e/ideas/new');
-  await page.getByLabel('Title').fill(title);
-  await page.getByLabel('Description').fill('This idea will be deleted.');
-  await page.getByRole('button', { name: 'Submit' }).click();
-
-  await expect(page).toHaveURL(/\/acme-e2e\/ideas\/\d+$/);
+  await createIdea(page, {
+    orgSlug: 'acme-e2e',
+    title,
+    description: 'This idea will be deleted.',
+  });
   await page.getByRole('button', { name: 'Delete idea' }).click();
 
   await expect(page).toHaveURL(/\/acme-e2e$/);

@@ -1,17 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const { createIdea } = require('../../helpers');
 
 test('admin can move an idea to the planned roadmap', async ({ page }) => {
   const title = `Status test ${Date.now()}`;
 
-  await page.goto('/acme-e2e/ideas/new');
-
-  await page.getByLabel('Title').fill(title);
-  await page
-    .getByLabel('Description')
-    .fill('Testing the admin status workflow.');
-  await page.getByRole('button', { name: 'Submit' }).click();
-
-  await expect(page).toHaveURL(/\/acme-e2e\/ideas\/\d+$/);
+  await createIdea(page, {
+    orgSlug: 'acme-e2e',
+    title,
+    description: 'Testing the admin status workflow.',
+  });
 
   const statusSelect = page.locator('select[name="status"]');
   await statusSelect.selectOption('planned');
@@ -19,6 +16,9 @@ test('admin can move an idea to the planned roadmap', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/acme-e2e\/ideas\/\d+$/);
   await expect(statusSelect).toHaveValue('planned');
+
+  await page.reload();
+  await expect(page.locator('select[name="status"]')).toHaveValue('planned');
 
   await page.goto('/acme-e2e/roadmap');
   await expect(page).toHaveTitle('Roadmap');

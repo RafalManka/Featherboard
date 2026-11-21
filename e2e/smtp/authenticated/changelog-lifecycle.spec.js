@@ -40,4 +40,13 @@ test('admin can publish an idea through a changelog', async ({ page }) => {
   await expect(page.getByRole('heading', { name: changelogTitle })).toBeVisible();
   await expect(page.getByText(changelogDescription)).toBeVisible();
   await expect(page.getByRole('link', { name: ideaTitle })).toBeVisible();
+  await expect(page).toHaveScreenshot('changelog-detail.png', {
+    fullPage: true,
+    mask: [
+      page.locator('.idea-main h1'),
+      page.locator('.idea-description'),
+      page.locator('time'),
+      page.locator('.sidebar-shipped-ideas'),
+    ],
+  });
 });

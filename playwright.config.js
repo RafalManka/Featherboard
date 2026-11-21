@@ -33,7 +33,7 @@ module.exports = defineConfig({
     },
     {
       name: 'smtp-setup',
-      testMatch: /smtp\/setup\.spec\.js/,
+      testMatch: /smtp\/setup.*\.spec\.js/,
       use: {
         baseURL: 'http://127.0.0.1:3101',
       },

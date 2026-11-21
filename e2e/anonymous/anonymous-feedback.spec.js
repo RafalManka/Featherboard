@@ -16,6 +16,13 @@ test('anonymous visitors can post, vote, and comment', async ({ page }) => {
   await expect(page).toHaveURL(/\/default\/ideas\/\d+$/);
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
   await expect(page.getByText(description)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Update status' })).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete idea' })).not.toBeVisible();
+
+  const settingsResponse = await page.goto('/default/settings/site');
+  expect(settingsResponse).not.toBeNull();
+  expect(settingsResponse.status()).toBe(403);
+  await page.goBack();
 
   const voteButton = page.locator('.vote-btn');
   await expect(voteButton).toBeVisible();

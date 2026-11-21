@@ -1,14 +1,14 @@
 const { test, expect } = require('@playwright/test');
+const { createIdea } = require('../../helpers');
 
 test('public board filters ideas by status', async ({ page }) => {
   const title = `Planned idea ${Date.now()}`;
 
-  await page.goto('/acme-e2e/ideas/new');
-  await page.getByLabel('Title').fill(title);
-  await page.getByLabel('Description').fill('Testing the public status filter.');
-  await page.getByRole('button', { name: 'Submit' }).click();
-
-  await expect(page).toHaveURL(/\/acme-e2e\/ideas\/\d+$/);
+  await createIdea(page, {
+    orgSlug: 'acme-e2e',
+    title,
+    description: 'Testing the public status filter.',
+  });
   const statusSelect = page.locator('select[name="status"]');
   await statusSelect.selectOption('planned');
   await page.getByRole('button', { name: 'Update status' }).click();

@@ -26,4 +26,15 @@ test('public board sorts ideas by newest and top votes', async ({ page }) => {
   await page.goto('/default?sort=top');
   titles = await page.locator('.idea-title').allTextContents();
   expect(titles.indexOf(olderTitle)).toBeLessThan(titles.indexOf(newerTitle));
+
+  await expect(page).toHaveScreenshot('populated-board.png', {
+    fullPage: false,
+    maxDiffPixels: 500,
+    style: '.idea-card:nth-child(n + 3) { display: none !important; }',
+    mask: [
+      page.locator('.idea-title'),
+      page.locator('.idea-excerpt'),
+      page.locator('time'),
+    ],
+  });
 });

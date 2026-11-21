@@ -15,7 +15,7 @@ pub async fn test_db() -> Pool<Sqlite> {
         .expect("failed to run migrations");
     db
 }
-
+#[allow(dead_code)]
 pub fn test_environment() -> Environment {
     Environment {
         database_url: "sqlite::memory:".to_string(),
@@ -25,7 +25,7 @@ pub fn test_environment() -> Environment {
         stripe: None,
     }
 }
-
+#[allow(dead_code)]
 pub fn test_stripe_environment(secret: &str) -> Environment {
     Environment {
         public_url: Some("http://localhost:3000".to_string()),
