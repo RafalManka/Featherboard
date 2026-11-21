@@ -2,8 +2,10 @@
   "name": "featherboard-e2e",
   "private": true,
   "scripts": {
+    "test:all": "cargo test && npm run test:e2e",
     "test:e2e": "playwright test",
-    "test:e2e:smtp": "playwright test --config=playwright.smtp.config.js"
+    "test:e2e:independent": "playwright test --project=independent",
+    "test:e2e:smtp": "playwright test --project=smtp-authenticated"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0"

@@ -2,8 +2,9 @@ const fs = require('fs');
 const { test, expect } = require('@playwright/test');
 
 const EMAIL_FILE = '/private/tmp/featherboard-e2e-email.eml';
+const AUTH_FILE = 'playwright/.auth/admin.json';
 
-test('configured email setup completes through the magic link', async ({ page }) => {
+test('create organization and save admin session', async ({ page }) => {
   await page.goto('/setup');
   await expect(page).toHaveTitle('Create organisation · Featherboard');
 
@@ -35,4 +36,6 @@ test('configured email setup completes through the magic link', async ({ page })
   await page.goto(magicLink);
   await expect(page).toHaveURL(/\/acme-e2e$/);
   await expect(page).toHaveTitle('Ideas');
+
+  await page.context().storageState({ path: AUTH_FILE });
 });
