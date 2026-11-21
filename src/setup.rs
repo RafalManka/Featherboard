@@ -196,7 +196,7 @@ pub async fn submit_admin_page(
         .environment
         .public_url
         .as_deref()
-        .expect("Public URL is not configured");
+        .ok_or_else(|| anyhow::anyhow!("PUBLIC_URL is required for email links"))?;
     let link = format!("{public_url}/setup/confirm/{token}");
     let template = MagicLinkEmail {
         email: email.clone(),

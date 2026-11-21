@@ -5,6 +5,7 @@
     "test:all": "cargo test && npm run test:e2e",
     "test:e2e": "playwright test",
     "test:e2e:independent": "playwright test --project=independent",
+    "test:e2e:anonymous": "playwright test --project=anonymous",
     "test:e2e:smtp": "playwright test --project=smtp-authenticated"
   },
   "devDependencies": {

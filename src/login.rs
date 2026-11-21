@@ -112,7 +112,17 @@ async fn login_form_submit(
         .execute(&state.db)
         .await?;
 
-    let link = current_org.path(&format!("/login/check-email/{}", &token));
+    let public_url = state
+        .environment
+        .public_url
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("PUBLIC_URL is required for email links"))?;
+
+    let link = format!(
+        "{public_url}{}",
+        current_org.path(&format!("/login/check-email/{token}"))
+    );
+
     EmailNotifier::new(&state.db, &current_org, email_client.as_ref())
         .magic_link(MagicLinkEmail { email, token, link })
         .await?;

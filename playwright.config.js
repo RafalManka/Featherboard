@@ -25,6 +25,13 @@ module.exports = defineConfig({
       },
     },
     {
+      name: 'anonymous',
+      testMatch: /anonymous\/.*\.spec\.js/,
+      use: {
+        baseURL: 'http://127.0.0.1:3102',
+      },
+    },
+    {
       name: 'smtp-setup',
       testMatch: /smtp\/setup\.spec\.js/,
       use: {
@@ -44,8 +51,15 @@ module.exports = defineConfig({
   webServer: [
     {
       command:
-        'DATABASE_URL=sqlite:/private/tmp/featherboard-playwright.db?mode=rwc PORT=3100 PUBLIC_URL=http://127.0.0.1:3100 cargo run --bin featherboard',
+        'rm -f /private/tmp/featherboard-playwright.db /private/tmp/featherboard-playwright.db-shm /private/tmp/featherboard-playwright.db-wal && DATABASE_URL=sqlite:/private/tmp/featherboard-playwright.db?mode=rwc PORT=3100 PUBLIC_URL=http://127.0.0.1:3100 cargo run --bin featherboard',
       url: 'http://127.0.0.1:3100/healthz',
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command:
+        'DATABASE_URL=sqlite:/private/tmp/featherboard-playwright-anonymous.db?mode=rwc PORT=3102 PUBLIC_URL=http://127.0.0.1:3102 cargo run --bin featherboard',
+      url: 'http://127.0.0.1:3102/healthz',
       reuseExistingServer: false,
       timeout: 120_000,
     },
