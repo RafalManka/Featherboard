@@ -27,6 +27,7 @@ use tracing::Level;
 pub mod admin;
 pub mod auth;
 pub mod auth_github;
+mod billing;
 pub mod changelog;
 pub mod comments;
 pub mod email;
@@ -36,6 +37,7 @@ pub mod ideas;
 pub mod login;
 pub mod models;
 pub mod org;
+mod plan;
 pub mod server;
 mod settings;
 pub mod setup;
@@ -46,8 +48,6 @@ pub mod templates;
 pub mod user_settings;
 pub mod validation;
 pub mod webhooks;
-mod plan;
-mod billing;
 
 #[derive(Clone)]
 pub struct AppState {

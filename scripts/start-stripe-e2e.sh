@@ -41,6 +41,7 @@ done
 rm -f "$database_file" "$database_file-shm" "$database_file-wal"
 
 stripe listen \
+  --api-key "$STRIPE_SECRET_KEY" \
   --events checkout.session.completed,checkout.session.expired,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed \
   --forward-to "http://127.0.0.1:${port}/webhooks/stripe" \
   >"$listen_log" 2>&1 &

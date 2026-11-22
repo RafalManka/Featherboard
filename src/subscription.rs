@@ -1,8 +1,10 @@
 use crate::AppState;
 use crate::admin::is_admin;
+use crate::billing::BillingStatus;
 use crate::error::AppError;
 use crate::models::SubscriptionStatus;
 use crate::org::CurrentOrg;
+use crate::plan::Plan;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
@@ -12,8 +14,6 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tower_sessions::Session;
 use uuid::Uuid;
-use crate::billing::BillingStatus;
-use crate::plan::Plan;
 
 pub fn subscriptions_router() -> Router<AppState> {
     Router::new()
@@ -251,15 +251,25 @@ pub async fn get_billing_view(
     let has_config = stripe_configured;
 
     if has_config && let Some(subscription) = subscription {
-        Ok(BillingView{
-            plan: Plan::Pro,
-            status: BillingStatus::Active,
-            subscription: Some(subscription),
-            idempotency_key: Some(find_idempotency_key(db, org_id).await?),
-            can_upgrade: false,
+        let status = SubscriptionStatus::parse(&subscription.status)
+            .ok_or_else(|| anyhow::anyhow!("unknown subscription status"))?;
+        let status = BillingStatus::from_subscription_status(&status);
+        let plan = status.plan();
+        let (subscription, idempotency_key, can_upgrade) = if plan == Plan::Free {
+            (None, Some(find_idempotency_key(db, org_id).await?), true)
+        } else {
+            (Some(subscription), None, false)
+        };
+
+        Ok(BillingView {
+            plan,
+            status,
+            subscription,
+            idempotency_key,
+            can_upgrade,
         })
     } else if has_config {
-        Ok(BillingView{
+        Ok(BillingView {
             plan: Plan::Free,
             status: BillingStatus::Free,
             subscription: None,
@@ -267,8 +277,8 @@ pub async fn get_billing_view(
             can_upgrade: true,
         })
     } else {
-        Ok(BillingView{
-            plan: Plan::Pro,
+        Ok(BillingView {
+            plan: Plan::Free,
             status: BillingStatus::NotConfigured,
             subscription: None,
             idempotency_key: None,
@@ -326,7 +336,9 @@ async fn get_valid_subscription(
     };
     if !matches!(
         status,
-        SubscriptionStatus::Canceled | SubscriptionStatus::IncompleteExpired
+        SubscriptionStatus::Canceled
+            | SubscriptionStatus::IncompleteExpired
+            | SubscriptionStatus::Incomplete
     ) {
         Ok(Some(subscription))
     } else {
