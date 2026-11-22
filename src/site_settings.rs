@@ -2,7 +2,7 @@ use crate::AppState;
 use crate::admin::is_admin;
 use crate::error::AppError;
 use crate::org::CurrentOrg;
-use crate::subscription::{SubscriptionView, get_subscription_view};
+use crate::subscription::{BillingView, get_billing_view};
 use crate::templates::{HtmlTemplate, Layout};
 use askama::Template;
 use axum::extract::State;
@@ -24,7 +24,7 @@ pub fn site_settings_router() -> Router<AppState> {
 #[template(path = "pages/settings.html")]
 struct SettingsTemplate {
     layout: Layout,
-    subscription: SubscriptionView,
+    billing: BillingView,
     github: GithubView,
 }
 
@@ -39,7 +39,7 @@ async fn get_settings(
 
     Ok(HtmlTemplate(SettingsTemplate {
         layout: Layout::load(&state.db, &current_org, &session).await?,
-        subscription: get_subscription_view(
+        billing: get_billing_view(
             &state.db,
             current_org.id,
             state.environment.stripe.is_some(),

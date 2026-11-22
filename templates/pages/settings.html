@@ -20,8 +20,8 @@
 
         <section id="billing" class="settings-card">
             <h2>Subscription</h2>
-            {% match subscription %}
-            {% when SubscriptionView::Active(subscription) %}
+            {% match billing.subscription %}
+            {% when Some(subscription) %}
             <p class="settings-status">Your subscription is active.</p>
             <div class="settings-meta">
                 <span>Status</span>
@@ -34,14 +34,19 @@
             <form method="post" action="/{{ layout.org_slug }}/subscriptions/portal" target="_blank" rel="noopener">
                 <button type="submit">Manage subscription ↗</button>
             </form>
-            {% when SubscriptionView::CanSubscribe(idempotency_key) %}
-            <p class="settings-status">Your workspace is not subscribed yet.</p>
+            {% when None %}
+            {% if billing.can_upgrade %}
+            <p class="settings-status">Your workspace is on the Free plan.</p>
             <form method="post" action="/{{ layout.org_slug }}/subscriptions/checkout">
+                {% match billing.idempotency_key %}
+                {% when Some(idempotency_key) %}
                 <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
-                <button type="submit">Subscribe</button>
+                {% when None %}{% endmatch %}
+                <button type="submit">Upgrade</button>
             </form>
-            {% when SubscriptionView::NotConfigured %}
-            <p class="settings-status">Billing is not configured for this instance.</p>
+            {% else %}
+            <p class="settings-status">Your workspace is on the Free plan. Billing is not configured for this instance.</p>
+            {% endif %}
             {% endmatch %}
         </section>
 

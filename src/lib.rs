@@ -46,6 +46,8 @@ pub mod templates;
 pub mod user_settings;
 pub mod validation;
 pub mod webhooks;
+mod plan;
+mod billing;
 
 #[derive(Clone)]
 pub struct AppState {

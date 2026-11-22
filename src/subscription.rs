@@ -12,6 +12,8 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tower_sessions::Session;
 use uuid::Uuid;
+use crate::billing::BillingStatus;
+use crate::plan::Plan;
 
 pub fn subscriptions_router() -> Router<AppState> {
     Router::new()
@@ -232,28 +234,46 @@ impl Subscription {
     }
 }
 
-pub enum SubscriptionView {
-    Active(Subscription),
-    CanSubscribe(String), // idempotency_key
-    NotConfigured,
+pub struct BillingView {
+    pub plan: Plan,
+    pub status: BillingStatus,
+    pub subscription: Option<Subscription>,
+    pub idempotency_key: Option<String>,
+    pub can_upgrade: bool,
 }
 
-pub async fn get_subscription_view(
+pub async fn get_billing_view(
     db: &SqlitePool,
     org_id: i64,
     stripe_configured: bool,
-) -> Result<SubscriptionView, AppError> {
+) -> Result<BillingView, AppError> {
     let subscription = get_valid_subscription(db, org_id).await?;
     let has_config = stripe_configured;
 
     if has_config && let Some(subscription) = subscription {
-        Ok(SubscriptionView::Active(subscription))
+        Ok(BillingView{
+            plan: Plan::Pro,
+            status: BillingStatus::Active,
+            subscription: Some(subscription),
+            idempotency_key: Some(find_idempotency_key(db, org_id).await?),
+            can_upgrade: false,
+        })
     } else if has_config {
-        Ok(SubscriptionView::CanSubscribe(
-            find_idempotency_key(db, org_id).await?,
-        ))
+        Ok(BillingView{
+            plan: Plan::Free,
+            status: BillingStatus::Free,
+            subscription: None,
+            idempotency_key: Some(find_idempotency_key(db, org_id).await?),
+            can_upgrade: true,
+        })
     } else {
-        Ok(SubscriptionView::NotConfigured)
+        Ok(BillingView{
+            plan: Plan::Pro,
+            status: BillingStatus::NotConfigured,
+            subscription: None,
+            idempotency_key: None,
+            can_upgrade: false,
+        })
     }
 }
 

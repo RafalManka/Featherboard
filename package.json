@@ -4,9 +4,11 @@
   "scripts": {
     "test:all": "cargo test && npm run test:e2e",
     "test:e2e": "playwright test",
-    "test:e2e:independent": "playwright test --project=independent",
-    "test:e2e:anonymous": "playwright test --project=anonymous",
-    "test:e2e:smtp": "playwright test --project=smtp-authenticated"
+    "test:e2e:independent": "E2E_PROJECT=independent playwright test --project=independent",
+    "test:e2e:anonymous": "E2E_PROJECT=anonymous playwright test --project=anonymous",
+    "test:e2e:smtp": "E2E_PROJECT=smtp playwright test --project=smtp-authenticated",
+    "test:e2e:stripe": "E2E_PROJECT=stripe ./scripts/run-stripe-e2e.sh --project=stripe-authenticated",
+    "test:all:stripe": "cargo test && npm run test:e2e && npm run test:e2e:stripe"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0"

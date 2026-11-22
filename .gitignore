@@ -9,3 +9,4 @@ node_modules
 test-results
 playwright-report
 playwright/.auth
+.env.test.local

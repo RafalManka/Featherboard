@@ -12,15 +12,15 @@ use tower_sessions_sqlx_store::SqliteStore;
 // Guards against the resubscribe-after-cancellation bug fixed 2026-10-10
 // (see plan.md, Phase 7): once a subscription's status became `canceled`,
 // the UI got stuck permanently showing the word "canceled" with no way
-// back to Subscribe, even though the backend (has_ongoing_subscription)
+// back to the Free plan's Upgrade action, even though the backend (has_ongoing_subscription)
 // already allowed a fresh checkout for that exact status. This confirms
-// the Subscribe form actually renders for a canceled org, not just that
+// the Upgrade form actually renders for a canceled org, not just that
 // the page loads. Targets /settings (not the old standalone /subscriptions
 // page, deleted 2026-10-21 once Settings' Billing section replaced it) —
-// both rendered the same SubscriptionView through the same shared
-// get_subscription_view helper, so the guarantee is unchanged.
+// both rendered the same billing view through the same shared
+// get_billing_view helper, so the guarantee is unchanged.
 #[tokio::test]
-async fn canceled_subscription_shows_subscribe_form() {
+async fn canceled_subscription_shows_free_plan_upgrade_form() {
     let db = test_db().await;
 
     // Migrations seed org id 1 / slug "default" automatically.
@@ -76,7 +76,7 @@ async fn canceled_subscription_shows_subscribe_form() {
     let body = String::from_utf8(body.to_vec()).unwrap();
 
     assert!(
-        body.contains("Subscribe"),
-        "expected a Subscribe form for a canceled subscription, got: {body}"
+        body.contains("Your workspace is on the Free plan.") && body.contains("Upgrade"),
+        "expected a Free plan Upgrade form for a canceled subscription, got: {body}"
     );
 }
