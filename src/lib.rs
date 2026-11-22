@@ -11,10 +11,14 @@ use crate::setup::setup_router;
 use crate::subscription::subscriptions_router;
 use crate::webhooks::webhooks_router;
 use axum::Router;
+#[cfg(feature = "e2e")]
+use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
+#[cfg(feature = "e2e")]
+use axum::routing::post;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::sync::Arc;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
@@ -77,8 +81,12 @@ pub fn app_router(
     environment: Environment,
     github_client: Arc<dyn GithubClient + Send + Sync>,
 ) -> Router {
-    let app = Router::new()
-        .route("/", get(root_redirect))
+    let app = Router::new().route("/", get(root_redirect));
+
+    #[cfg(feature = "e2e")]
+    let app = app.route("/e2e/billing/{slug}/{status}", post(e2e_set_billing_status));
+
+    let app = app
         .nest("/{slug}", org_router())
         .nest("/webhooks", webhooks_router())
         .route("/static/{*path}", get(static_assets::serve))
@@ -101,6 +109,45 @@ pub fn app_router(
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         );
     app
+}
+
+#[cfg(feature = "e2e")]
+async fn e2e_set_billing_status(
+    State(state): State<AppState>,
+    Path((slug, status)): Path<(String, String)>,
+) -> Result<StatusCode, error::AppError> {
+    let org_id: Option<i64> = sqlx::query_scalar("SELECT id FROM organizations WHERE slug = ?")
+        .bind(&slug)
+        .fetch_optional(&state.db)
+        .await?;
+
+    let Some(org_id) = org_id else {
+        return Ok(StatusCode::NOT_FOUND);
+    };
+
+    if status == "free" {
+        sqlx::query("DELETE FROM subscriptions WHERE org_id = ?")
+            .bind(org_id)
+            .execute(&state.db)
+            .await?;
+        return Ok(StatusCode::OK);
+    }
+
+    let Some(status) = models::SubscriptionStatus::parse(&status) else {
+        return Ok(StatusCode::BAD_REQUEST);
+    };
+
+    subscription::upsert_from_stripe(
+        &state.db,
+        org_id,
+        &format!("e2e-customer-{org_id}"),
+        &format!("e2e-subscription-{org_id}"),
+        status,
+        1,
+    )
+    .await?;
+
+    Ok(StatusCode::OK)
 }
 
 fn org_router() -> Router<AppState> {
