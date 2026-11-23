@@ -22,7 +22,7 @@
             <h2>Subscription</h2>
             {% match billing.subscription %}
             {% when Some(subscription) %}
-            <p class="settings-status">Your subscription is active.</p>
+            <p class="settings-status">{{ billing.status.message() }}</p>
             <div class="settings-meta">
                 <span>Status</span>
                 <strong>{{ subscription.status }}</strong>

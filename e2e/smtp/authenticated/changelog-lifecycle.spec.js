@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 
 test('admin can publish an idea through a changelog', async ({ page }) => {
-  const ideaTitle = `Release idea ${Date.now()}`;
-  const changelogTitle = `Release ${Date.now()}`;
+  const ideaTitle = 'Release idea';
+  const changelogTitle = 'Release';
   const ideaDescription = 'Testing the changelog assignment workflow.';
   const changelogDescription = 'Testing a published changelog entry.';
 

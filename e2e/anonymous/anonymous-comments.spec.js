@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
 test('anonymous visitors can validate comments and post replies', async ({ page }) => {
-  const title = `Comment test ${Date.now()}`;
+  const title = 'Comment test';
 
   await page.goto('/default/ideas/new');
   await page.getByLabel('Title').fill(title);
@@ -35,6 +35,7 @@ test('anonymous visitors can validate comments and post replies', async ({ page 
       page.locator('.comment-body'),
       page.locator('.comment-author'),
       page.locator('.comment-date'),
+      page.locator('.detail-field-value'),
     ],
   });
 });

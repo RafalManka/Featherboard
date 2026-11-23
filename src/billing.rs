@@ -15,6 +15,17 @@ pub enum BillingStatus {
 }
 
 impl BillingStatus {
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::Active => "Your subscription is active.",
+            Self::Trialing => "Your trial is active.",
+            Self::PastDue => {
+                "There is a problem with your payment. Please update your billing details."
+            }
+            _ => "Your workspace is on the Free plan.",
+        }
+    }
+
     pub fn from_subscription_status(subscription_status: &SubscriptionStatus) -> Self {
         match subscription_status {
             SubscriptionStatus::Incomplete => Self::Incomplete,
